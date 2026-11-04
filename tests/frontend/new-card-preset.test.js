@@ -70,3 +70,18 @@ describe('new-card preset', () => {
   });
 
 });
+
+describe('new-card preset with an epic', () => {
+  it('pre-selects the epic and sends it with the card', async () => {
+    const { w, created } = await load();
+    w.state.todo.push({ id: 'e1', key: 'ALP-9', board_id: 'b1', title: 'Faster onboarding', tag: 'epic', priority: 'medium',
+      assignee: null, reporter: null, points: 0, date: '2026-01-01', description: '', attachments: [], comments: [],
+      version: 1, custom_fields: {}, epic_id: null });
+    w.eval("openCreateModal({ epic_id: 'e1' })");
+    assert.match(w.document.getElementById('detail-epic-text').textContent, /ALP-9/);
+    const draft = Object.values(w.state).flat().find((c) => c.id === 'draft-new-card');
+    assert.equal(draft && draft.epic_id, 'e1', 'the placeholder card sits in the epic');
+    create(w, 'In the epic');
+    assert.equal(created[0].epic_id, 'e1');
+  });
+});

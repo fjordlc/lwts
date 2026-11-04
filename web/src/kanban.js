@@ -1024,7 +1024,7 @@ let _isCreateMode = false;
 let _pendingCustomFields = {};
 let _pendingEpic = null;
 
-// Opens the new-card form. `preset` may pre-fill it: { column_id, tag, priority, assignee_id, custom_fields },
+// Opens the new-card form. `preset` may pre-fill it: { column_id, epic_id, tag, priority, assignee_id, custom_fields },
 // e.g. for an "add a card here" button on a column.
 function openCreateModal(preset) {
   const p = preset && preset.constructor === Object ? preset : {};
@@ -1080,6 +1080,7 @@ function openCreateModal(preset) {
   _refreshEpicDropdown();
   const epicRow = document.getElementById('detail-epic-row');
   if (epicRow) epicRow.style.display = COLUMNS.some(col => (state[col.id] || []).some(c => c.tag === 'epic')) ? '' : 'none';
+  if (p.epic_id) { _pendingEpic = p.epic_id; if (ddDetailEpic) ddDetailEpic.setValue(p.epic_id, true); }
 
   // Due date — default to +2 weeks
   const twoWeeks = new Date();
@@ -1156,7 +1157,7 @@ function syncCreateDraft() {
       points: parseInt(document.getElementById('detail-points').value) || 0,
       date: new Date().toISOString().split('T')[0],
       description: '', attachments: [], comments: [], version: 0,
-      custom_fields: Object.assign({}, _pendingCustomFields),
+      custom_fields: Object.assign({}, _pendingCustomFields), epic_id: _pendingEpic,
     });
   }
   render();
@@ -1365,6 +1366,7 @@ function _refreshEpicDropdown() {
         _pendingEpic = v || null;
         refreshSidebarTexts();
         closeSidebarField('epic');
+        syncCreateDraft();
       } else {
         detailFieldChanged('epic', v || null);
       }
