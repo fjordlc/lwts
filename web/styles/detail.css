@@ -99,6 +99,15 @@
   line-height: 1;
 }
 
+/* Card header: the Type property lives in the header, in place of the title */
+#detail-header-title { display: none !important; }
+.detail-hdr-type { position: relative; display: inline-flex; align-items: center; min-width: 0; }
+.detail-hdr-type #detail-tag-text { font-size: 1rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.detail-hdr-type #detail-tag-dd { position: absolute; top: 100%; left: 0; z-index: 50; height: 0; right: auto; width: 200px; }
+.detail-hdr-type .fn-dropdown { position: relative; height: 0; overflow: visible; }
+.detail-hdr-type .fn-dropdown-trigger { position: absolute; opacity: 0; pointer-events: none; height: 0; padding: 0; border: none; overflow: hidden; }
+.detail-hdr-type .fn-dropdown-menu { position: absolute; top: 6px; left: 0; right: 0; min-width: 0; width: auto; }
+
 /* Two-column body */
 .detail-body {
   display: flex;
