@@ -116,3 +116,13 @@ describe('new card shown while it is being written', () => {
     assert.ok(calls >= 3, `window.render called ${calls} times`);
   });
 });
+describe('saving the new card directly', () => {
+  it('saves it once when submitCreateFromDetail is called while the form is open', async () => {
+    const { w, created } = await load();
+    w.openCreateModal();
+    typeTitle(w, 'Submitted directly');
+    w.submitCreateFromDetail();
+    assert.deepEqual(created.map((c) => c.title), ['Submitted directly']);
+    assert.equal(drafts(w).length, 0);
+  });
+});

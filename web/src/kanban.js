@@ -1231,6 +1231,9 @@ function submitCreateFromDetail() {
   _pendingComments = [];
   const customFieldsPayload = Object.assign({}, _pendingCustomFields);
   window._pendingDueDate = null;
+  // This card is being saved now, so closing the form must not save the draft a second time.
+  _createDraft = false;
+  _removeDraftCard();
   closeCreateMode();
 
   if (targetBoardId) {
