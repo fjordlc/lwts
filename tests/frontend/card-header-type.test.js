@@ -10,6 +10,7 @@ const { JSDOM } = require('jsdom');
 const ROOT = path.join(__dirname, '..', '..');
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf-8');
 const doc = new JSDOM(read('web/index.html')).window.document;
+const css = read('web/styles/detail.css');
 
 describe('Type in the card header', () => {
   it('puts the Type control in the detail header', () => {
@@ -23,5 +24,12 @@ describe('Type in the card header', () => {
     const labels = Array.from(doc.querySelectorAll('#detail-modal .detail-field-label')).map((l) => l.textContent.trim());
     assert.ok(!labels.includes('Type'), JSON.stringify(labels));
   });
-
+  it('keeps the card title in the header for screen readers', () => {
+    const title = doc.getElementById('detail-header-title');
+    assert.ok(title.closest('.lwts-modal-header'));
+    const rule = css.match(/#detail-header-title\s*\{([^}]*)\}/);
+    assert.ok(rule, 'has a rule for #detail-header-title');
+    assert.doesNotMatch(rule[1], /display:\s*none/, 'must not be display:none, it names the dialog');
+    assert.match(rule[1], /clip:/);
+  });
 });

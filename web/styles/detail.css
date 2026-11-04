@@ -99,8 +99,9 @@
   line-height: 1;
 }
 
-/* Card header: the Type property lives in the header, in place of the title */
-#detail-header-title { display: none !important; }
+/* Card header: the Type property lives in the header, in place of the title. The title stays in the
+   header for screen readers (it names the dialog), but is hidden visually like .sr-only. */
+#detail-header-title { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .detail-hdr-type { position: relative; display: inline-flex; align-items: center; min-width: 0; }
 .detail-hdr-type #detail-tag-text { font-size: 1rem; font-weight: 500; cursor: pointer; white-space: nowrap; }
 .detail-hdr-type #detail-tag-dd { position: absolute; top: 100%; left: 0; z-index: 50; height: 0; right: auto; width: 200px; }
