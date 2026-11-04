@@ -1022,12 +1022,14 @@ function clearDropTarget() {
 
 let _isCreateMode = false;
 let _pendingCustomFields = {};
+let _pendingEpic = null;
 
 function openCreateModal() {
   _isCreateMode = true;
   _pendingDescription = '';
   _pendingComments = [];
   _pendingCustomFields = {};
+  _pendingEpic = null;
   detailCard = null;
   detailCol = null;
 
@@ -1064,6 +1066,11 @@ function openCreateModal() {
   ddDetailReporter.setValue(currentUser ? currentUser.id : 'unassigned', true);
   ddDetailAssignee.setValue('unassigned', true);
   document.getElementById('detail-points').value = '';
+
+  // Epic — offered when the board has epics
+  _refreshEpicDropdown();
+  const epicRow = document.getElementById('detail-epic-row');
+  if (epicRow) epicRow.style.display = COLUMNS.some(col => (state[col.id] || []).some(c => c.tag === 'epic')) ? '' : 'none';
 
   // Due date — default to +2 weeks
   const twoWeeks = new Date();
@@ -1135,6 +1142,7 @@ function submitCreateFromDetail() {
   if (!title) { document.getElementById('detail-title').focus(); return; }
 
   const col = ddDetailColumn.getValue();
+  const epicId = _pendingEpic || null;
   let assignee = ddDetailAssignee.getValue();
   const descEdit = document.getElementById('detail-desc-edit');
   const description = (detailEditor && !descEdit.classList.contains('hidden')) ? detailEditor.getMarkdown() : _pendingDescription;
@@ -1161,6 +1169,7 @@ function submitCreateFromDetail() {
     comments: _pendingComments.slice(),
     version: 0,
     custom_fields: Object.assign({}, _pendingCustomFields),
+    epic_id: epicId,
   };
 
   const pendingCommentTexts = _pendingComments.map(c => c.body || c.text);
@@ -1194,6 +1203,7 @@ function submitCreateFromDetail() {
       points: card.points || null,
       due_date: card.due_date || null,
       custom_fields: customFieldsPayload,
+      epic_id: epicId,
     }).then(serverCard => {
       if (isCurrentBoard) {
         const colCards = state[col];
@@ -1289,7 +1299,16 @@ function _refreshEpicDropdown() {
   const epicEl = document.getElementById('detail-epic');
   if (epicEl) epicEl.innerHTML = '';
   ddDetailEpic = new window.FnDropdown(epicEl, {
-    value: '', options: epicOpts, onChange: (v) => detailFieldChanged('epic', v || null),
+    value: '', options: epicOpts, onChange: (v) => {
+      if (_isCreateMode && !detailCard) {
+        // New card: remember the choice; it is sent when the card is created.
+        _pendingEpic = v || null;
+        refreshSidebarTexts();
+        closeSidebarField('epic');
+      } else {
+        detailFieldChanged('epic', v || null);
+      }
+    },
   });
 }
 
@@ -1594,8 +1613,8 @@ function refreshSidebarTexts() {
 
   // Epic
   const epicTextEl = document.getElementById('detail-epic-text');
-  if (epicTextEl && detailCard) {
-    const epicId = detailCard.epic_id || (ddDetailEpic ? ddDetailEpic.getValue() : '');
+  if (epicTextEl && (detailCard || _isCreateMode)) {
+    const epicId = detailCard ? (detailCard.epic_id || (ddDetailEpic ? ddDetailEpic.getValue() : '')) : _pendingEpic;
     if (epicId) {
       // Resolve the epic to show its key. cardIndex spans every loaded card
       // (all columns, cleared cards, and other boards in all-boards mode), so it
