@@ -1026,6 +1026,9 @@ let _pendingCustomFields = {};
 // Opens the new-card form. `preset` may pre-fill it: { column_id, tag, priority, assignee_id, custom_fields },
 // e.g. for an "add a card here" button on a column.
 function openCreateModal(preset) {
+  // Re-entering would save the create footer as the one to restore, so existing cards
+  // would lose their Delete/Close buttons after closing. The form that is open wins.
+  if (_isCreateMode) return;
   const p = preset && preset.constructor === Object ? preset : {};
   _isCreateMode = true;
   _pendingDescription = '';

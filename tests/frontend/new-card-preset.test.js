@@ -68,5 +68,13 @@ describe('new-card preset', () => {
     assert.equal(created[1].column_id, created[0].column_id);
     assert.equal(created[1].priority, created[0].priority);
   });
-
+  it('ignores a second open while the form is open, so existing cards keep their footer', async () => {
+    const { w } = await load();
+    w.openCreateModal();
+    w.openCreateModal({ column_id: 'done' });
+    assert.notEqual(w.document.getElementById('detail-column-text').textContent.trim(), 'Done');
+    w.closeDetail();
+    w.openDetail('c1');
+    assert.deepEqual(footerButtons(w), ['Delete card', 'Close']);
+  });
 });
