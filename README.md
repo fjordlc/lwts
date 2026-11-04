@@ -21,6 +21,11 @@
   <a href="https://ypy2jdydz5po7fyweuvykikjum0xoney.lambda-url.us-west-2.on.aws/">Live Demo</a> · <a href="#quick-start">Quick Start</a> · <a href="#api">API Docs</a> · <a href="https://github.com/oceanplexian/lwts/releases">Releases</a>
 </p>
 
+> **This is an unofficial fork of [LWTS](https://github.com/oceanplexian/lwts), created by Andreas Echavez ([@oceanplexian](https://github.com/oceanplexian)).**
+> The original code is copyright © 2025 Andreas Echavez and licensed under [MIT](LICENSE). The LWTS name and logo belong to him.
+> This fork adds bug fixes and features, which are also released under the [MIT](LICENSE) license; changes that fit the original
+> project are offered upstream as pull requests.
+
 ---
 
 <p align="center">
