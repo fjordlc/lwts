@@ -1023,7 +1023,10 @@ function clearDropTarget() {
 let _isCreateMode = false;
 let _pendingCustomFields = {};
 
-function openCreateModal() {
+// Opens the new-card form. `preset` may pre-fill it: { column_id, tag, priority, assignee_id, custom_fields },
+// e.g. for an "add a card here" button on a column.
+function openCreateModal(preset) {
+  const p = preset && preset.constructor === Object ? preset : {};
   _isCreateMode = true;
   _pendingDescription = '';
   _pendingComments = [];
@@ -1063,6 +1066,12 @@ function openCreateModal() {
   ddDetailPriority.setValue('medium', true);
   ddDetailReporter.setValue(currentUser ? currentUser.id : 'unassigned', true);
   ddDetailAssignee.setValue('unassigned', true);
+  // Optional preset
+  if (p.column_id) ddDetailColumn.setValue(p.column_id, true);
+  if (p.tag) ddDetailTag.setValue(p.tag, true);
+  if (p.priority) ddDetailPriority.setValue(p.priority, true);
+  if (p.assignee_id) ddDetailAssignee.setValue(p.assignee_id, true);
+  if (p.custom_fields) Object.assign(_pendingCustomFields, p.custom_fields);
   document.getElementById('detail-points').value = '';
 
   // Due date — default to +2 weeks
