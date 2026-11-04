@@ -14,6 +14,7 @@ import './boardthemes.js';
 import './settings.js';
 import './listview.js';
 import './features.js';
+import './sidepane.js';
 import './subtasks.js';
 import './a11y.js';
 import './plugins.js';
