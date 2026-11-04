@@ -1558,6 +1558,23 @@ function detailFieldChanged(field, value) {
 
 const SIDEBAR_FIELDS = ['project', 'column', 'tag', 'priority', 'reporter', 'assignee', 'epic', 'points'];
 
+// Show "KEY title"; when both do not fit, drop the key so the title stays readable. Compares natural
+// widths, so the result does not depend on the current wrap state, and refits when the field is resized or shown.
+function _applyEpicFit() {
+  const el = document.getElementById('detail-epic-text');
+  const key = el && el.querySelector('.detail-epic-key');
+  const name = el && el.querySelector('.detail-epic-name');
+  if (!name || !el.clientWidth) return;
+  el.classList.remove('detail-epic-compact');
+  el.classList.toggle('detail-epic-compact', key.offsetWidth + 6 + name.scrollWidth > el.clientWidth + 1);
+}
+function _fitEpicText() { requestAnimationFrame(_applyEpicFit); }
+(function observeEpicText() {
+  const el = document.getElementById('detail-epic-text');
+  if (el && window.ResizeObserver) new ResizeObserver(_applyEpicFit).observe(el);
+})();
+window.addEventListener('resize', _fitEpicText);
+
 function refreshSidebarTexts() {
   if (!detailCard && !_isCreateMode) return;
 
@@ -1608,11 +1625,23 @@ function refreshSidebarTexts() {
           if (epicCard) break;
         }
       }
-      epicTextEl.textContent = epicCard ? epicCard.key : 'Epic';
-      epicTextEl.title = epicCard ? (epicCard.title || '') : epicId;
+      epicTextEl.textContent = '';
+      const keyEl = document.createElement('span');
+      keyEl.className = 'detail-epic-key';
+      keyEl.textContent = epicCard ? epicCard.key : 'Epic';
+      epicTextEl.appendChild(keyEl);
+      if (epicCard && epicCard.title) {
+        const nameEl = document.createElement('span');
+        nameEl.className = 'detail-epic-name';
+        nameEl.textContent = epicCard.title;
+        epicTextEl.appendChild(nameEl);
+      }
+      epicTextEl.title = epicCard ? (epicCard.key + ' ' + (epicCard.title || '')).trim() : epicId;
+      _fitEpicText();
     } else {
       epicTextEl.textContent = 'None';
       epicTextEl.title = '';
+      epicTextEl.classList.remove('detail-epic-compact');
     }
   }
 
