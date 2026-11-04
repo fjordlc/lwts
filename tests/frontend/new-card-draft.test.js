@@ -105,5 +105,14 @@ describe('new card shown while it is being written', () => {
     assert.equal(w.document.getElementById('detail-title').value, 'Existing card');
     assert.deepEqual(created.map((c) => c.title), ['Half-written new card']);
   });
-
+  it('re-renders through window.render so wrappers (such as the phone layout) still run', async () => {
+    const { w } = await load();
+    let calls = 0;
+    const inner = w.render;
+    w.render = function () { calls++; return inner.apply(this, arguments); };
+    w.openCreateModal();
+    typeTitle(w, 'Draft');
+    w.discardCreate();
+    assert.ok(calls >= 3, `window.render called ${calls} times`);
+  });
 });
