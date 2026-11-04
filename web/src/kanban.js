@@ -1052,12 +1052,8 @@ function openCreateModal() {
   }
 
   // Sidebar dropdowns — defaults
-  if (ddDetailProject) {
-    // Refresh board options in case boards changed
-    const projectOpts = boardList.map(b => ({ value: b.id, label: b.name }));
-    ddDetailProject.setOptions(projectOpts);
-    ddDetailProject.setValue(currentBoardId, true);
-  }
+  _refreshDetailBoardOptions();
+  if (ddDetailProject) ddDetailProject.setValue(currentBoardId, true);
   // Show project row in create mode
   const projectRow = document.getElementById('detail-project-row');
   if (projectRow) projectRow.style.display = '';
@@ -1108,6 +1104,13 @@ function openCreateModal() {
 
   document.getElementById('detail-modal').classList.add('active');
   setTimeout(() => titleEl.focus(), 50);
+}
+
+// The project and status dropdowns are built once at start-up, but boards load later and each board
+// has its own columns. Refresh both whenever a card or the new-card form opens.
+function _refreshDetailBoardOptions() {
+  if (ddDetailProject) ddDetailProject.setOptions(boardList.map(b => ({ value: b.id, label: b.name })));
+  if (ddDetailColumn) ddDetailColumn.setOptions(COLUMNS.map(c => ({ value: c.id, label: c.label })));
 }
 
 function _updateCreateBtnState() {
@@ -1291,6 +1294,9 @@ function _refreshEpicDropdown() {
 }
 
 function openDetail(cardId, _fromHash) {
+  // A card can be opened while the new-card form is open (browser Back/Forward, a #KEY link).
+  // Leave create mode first, otherwise the card loads into the create form and Create saves a copy.
+  if (_isCreateMode) closeCreateMode();
   let foundCard = null, foundCol = null;
   for (const col of COLUMNS) {
     const c = (state[col.id] || []).find(c => c.id === cardId);
@@ -1330,6 +1336,7 @@ function openDetail(cardId, _fromHash) {
   collapseDescription();
 
   // Sidebar dropdowns (hidden by default — text shown instead)
+  _refreshDetailBoardOptions();
   // Show project as read-only in detail mode (can't move cards between boards)
   if (ddDetailProject) {
     ddDetailProject.setValue(foundCard.board_id || currentBoardId, true);
