@@ -1164,7 +1164,8 @@ function syncCreateDraft() {
       custom_fields: Object.assign({}, _pendingCustomFields), epic_id: _pendingEpic,
     });
   }
-  render();
+  // window.render, not render: other modules wrap it (e.g. the phone layout re-applies its active column).
+  window.render();
 }
 
 function startCreateDraft() {
@@ -1181,7 +1182,7 @@ function finishCreateDraft() {
   _draftDiscarded = false;
   _removeDraftCard();
   if (!discarded && document.getElementById('detail-title').value.trim()) submitCreateFromDetail();
-  else render();
+  else window.render();
 }
 
 (function bindCreateDraft() {
