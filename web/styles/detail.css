@@ -1011,3 +1011,9 @@ body.light-theme .lwts-modal a[href]:hover {
     width: 100%;
   }
 }
+
+/* Epic property: "KEY title", with the key dropped when the title does not fit */
+#detail-epic-text { display: flex; align-items: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-epic-key { flex: 0 0 auto; font-weight: 300; opacity: .7; margin-right: 6px; }
+.detail-epic-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+#detail-epic-text.detail-epic-compact .detail-epic-key { display: none; }
