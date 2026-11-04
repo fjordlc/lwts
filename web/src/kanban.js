@@ -1030,7 +1030,8 @@ function openCreateModal(preset) {
   // Re-entering would save the create footer as the one to restore, so existing cards
   // would lose their Delete/Close buttons after closing. The form that is open wins.
   if (_isCreateMode) return;
-  const p = preset && preset.constructor === Object ? preset : {};
+  // A plain object from any realm; ignores the Event passed when used directly as a click handler.
+  const p = Object.prototype.toString.call(preset) === '[object Object]' ? preset : {};
   _isCreateMode = true;
   _pendingDescription = '';
   _pendingComments = [];

@@ -77,6 +77,12 @@ describe('new-card preset', () => {
     w.openDetail('c1');
     assert.deepEqual(footerButtons(w), ['Delete card', 'Close']);
   });
+  it('accepts a preset object created in another realm', async () => {
+    const { w, created } = await load();
+    w.openCreateModal({ column_id: 'done' }); // a plain object from the test's realm
+    create(w, 'Cross-realm preset');
+    assert.equal(created[0].column_id, 'done');
+  });
 });
 
 describe('new-card preset with an epic', () => {
