@@ -65,7 +65,8 @@ describe('opening a card while the new-card form is open', () => {
     assert.equal(w.document.getElementById('detail-title').value, 'Existing card');
     assert.equal(w.document.getElementById('detail-key-text').textContent.trim(), 'ALP-1');
     assert.deepEqual(footerButtons(w), ['Delete card', 'Close']);
-    assert.equal(created.length, 0);
+    // Leaving the form saves the titled new card (see new-card-draft.test.js).
+    assert.deepEqual(created.map((c) => c.title), ['Half-written new card']);
   });
 
   it('does not save a copy of the opened card', async () => {
@@ -81,7 +82,7 @@ describe('opening a card while the new-card form is open', () => {
       .find((b) => b.textContent.trim() === 'Create' && !b.disabled);
     if (create) w.submitCreateFromDetail();
     await new Promise((r) => setTimeout(r, 0));
-    assert.equal(created.length, 0, 'created: ' + JSON.stringify(created.map((c) => c.title)));
+    assert.ok(!created.some((c) => c.title === 'Existing card'), 'created: ' + JSON.stringify(created.map((c) => c.title)));
     assert.equal(Object.values(w.state).flat().filter((c) => c.title === 'Existing card').length, 1);
   });
 });

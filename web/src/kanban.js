@@ -1087,23 +1087,29 @@ function openCreateModal() {
   const attachGrid = document.getElementById('detail-attachments');
   if (attachGrid) attachGrid.innerHTML = '';
 
-  // Footer — swap Close for Create
+  // Footer — closing the form saves a titled card, so the only action is Discard
   const footer = document.querySelector('#detail-modal .detail-footer');
   if (footer) {
     footer.dataset.origHtml = footer.innerHTML;
     footer.innerHTML = `
-      <div></div>
-      <div class="modal-footer-right">
-        <button class="lwts-modal-btn-cancel" onclick="closeCreateMode()">Cancel</button>
-        <button class="lwts-modal-btn-primary" id="create-submit-btn" onclick="submitCreateFromDetail()" disabled>Create</button>
-      </div>`;
+      <button class="lwts-modal-btn-cancel" onclick="discardCreate()">Discard</button>
+      <div class="modal-footer-right"></div>`;
   }
-
-  // Enable Create button when title is non-empty
-  titleEl.addEventListener('input', _updateCreateBtnState);
 
   document.getElementById('detail-modal').classList.add('active');
   setTimeout(() => titleEl.focus(), 50);
+  startCreateDraft();
+}
+
+// While the create form is open the new card is shown on the board, closing the form by any route
+// saves it, and Discard drops it. The draft is a placeholder card in `state` that is never persisted.
+const DRAFT_ID = 'draft-new-card';
+let _createDraft = false;
+let _draftDiscarded = false;
+
+function discardCreate() {
+  _draftDiscarded = true;
+  closeCreateMode();
 }
 
 // The project and status dropdowns are built once at start-up, but boards load later and each board
@@ -1113,14 +1119,58 @@ function _refreshDetailBoardOptions() {
   if (ddDetailColumn) ddDetailColumn.setOptions(COLUMNS.map(c => ({ value: c.id, label: c.label })));
 }
 
-function _updateCreateBtnState() {
-  const btn = document.getElementById('create-submit-btn');
-  if (btn) btn.disabled = !document.getElementById('detail-title').value.trim();
+function _removeDraftCard() {
+  for (const col of Object.keys(state)) {
+    if (Array.isArray(state[col])) state[col] = state[col].filter(c => c.id !== DRAFT_ID);
+  }
 }
 
+// Mirror the form onto the board as a placeholder card.
+function syncCreateDraft() {
+  if (!_createDraft) return;
+  _removeDraftCard();
+  const targetBoardId = (ddDetailProject ? ddDetailProject.getValue() : null) || currentBoardId;
+  if (targetBoardId === currentBoardId) {
+    const assignee = ddDetailAssignee.getValue();
+    const col = ddDetailColumn.getValue();
+    (state[col] ||= []).push({
+      id: DRAFT_ID, key: '', title: document.getElementById('detail-title').value.trim() || 'New card',
+      tag: ddDetailTag.getValue(), priority: ddDetailPriority.getValue(),
+      assignee: assignee === 'unassigned' ? null : assignee,
+      points: parseInt(document.getElementById('detail-points').value) || 0,
+      date: new Date().toISOString().split('T')[0],
+      description: '', attachments: [], comments: [], version: 0,
+      custom_fields: Object.assign({}, _pendingCustomFields),
+    });
+  }
+  render();
+}
+
+function startCreateDraft() {
+  _createDraft = true;
+  _draftDiscarded = false;
+  syncCreateDraft();
+}
+
+// Runs after the form has closed, while its fields still hold what the user entered.
+function finishCreateDraft() {
+  if (!_createDraft) return;
+  const discarded = _draftDiscarded;
+  _createDraft = false;
+  _draftDiscarded = false;
+  _removeDraftCard();
+  if (!discarded && document.getElementById('detail-title').value.trim()) submitCreateFromDetail();
+  else render();
+}
+
+(function bindCreateDraft() {
+  const modal = document.getElementById('detail-modal');
+  if (!modal) return;
+  modal.addEventListener('input', syncCreateDraft);
+  modal.addEventListener('click', () => setTimeout(syncCreateDraft, 0));
+})();
+
 function closeCreateMode() {
-  const titleEl = document.getElementById('detail-title');
-  if (titleEl) titleEl.removeEventListener('input', _updateCreateBtnState);
   _isCreateMode = false;
   const footer = document.querySelector('#detail-modal .detail-footer');
   if (footer && footer.dataset.origHtml) {
@@ -1128,6 +1178,7 @@ function closeCreateMode() {
     delete footer.dataset.origHtml;
   }
   document.getElementById('detail-modal').classList.remove('active');
+  finishCreateDraft();
 }
 
 function submitCreateFromDetail() {
@@ -3125,6 +3176,7 @@ window.onDrop = onDrop;
 window.clearDropTarget = clearDropTarget;
 window.openCreateModal = openCreateModal;
 window.closeCreateMode = closeCreateMode;
+window.discardCreate = discardCreate;
 window.submitCreateFromDetail = submitCreateFromDetail;
 window.initDetailDropdowns = initDetailDropdowns;
 window.openDetail = openDetail;
@@ -3218,7 +3270,6 @@ Object.defineProperty(window, 'detailEditor', { get() { return detailEditor; }, 
 Object.defineProperty(window, 'commentEditor', { get() { return commentEditor; }, set(v) { commentEditor = v; }, configurable: true });
 Object.defineProperty(window, '_isCreateMode', { get() { return _isCreateMode; }, set(v) { _isCreateMode = v; }, configurable: true });
 Object.defineProperty(window, '_renderAnimateCards', { get() { return _renderAnimateCards; }, set(v) { _renderAnimateCards = v; }, configurable: true });
-Object.defineProperty(window, '_updateCreateBtnState', { get() { return _updateCreateBtnState; }, configurable: true });
 Object.defineProperty(window, 'dragCard', { get() { return dragCard; }, set(v) { dragCard = v; }, configurable: true });
 Object.defineProperty(window, 'dragSourceCol', { get() { return dragSourceCol; }, set(v) { dragSourceCol = v; }, configurable: true });
 Object.defineProperty(window, 'dragEl', { get() { return dragEl; }, set(v) { dragEl = v; }, configurable: true });
