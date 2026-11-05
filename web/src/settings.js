@@ -1538,6 +1538,7 @@ async function openSettings(_fromHash) {
 
     // Show settings with fade in
     settings.classList.add('active');
+    if (typeof window.updateMobileTabsVisibility === 'function') window.updateMobileTabsVisibility();
     requestAnimationFrame(() => {
       requestAnimationFrame(() => settings.classList.add('visible'));
     });
@@ -1585,14 +1586,16 @@ function _toggleSettingsPicker(e) {
   const crumb = document.getElementById('settings-breadcrumb');
   if (!menu) return;
   const isOpen = menu.classList.contains('visible');
+  const dock = () => { if (typeof window.dockHeaderMenus === 'function') window.dockHeaderMenus(); };
   if (isOpen) {
     menu.classList.remove('visible');
+    dock();
     if (crumb) crumb.classList.remove('open');
     setTimeout(() => menu.classList.add('hidden'), 200);
   } else {
     menu.classList.remove('hidden');
     if (crumb) crumb.classList.add('open');
-    requestAnimationFrame(() => menu.classList.add('visible'));
+    requestAnimationFrame(() => { menu.classList.add('visible'); dock(); });
   }
 }
 
@@ -1602,6 +1605,7 @@ function _buildSettingsPickerMenu() {
 
   function closeMenu() {
     menu.classList.remove('visible');
+    if (typeof window.dockHeaderMenus === 'function') window.dockHeaderMenus();
     setTimeout(() => menu.classList.add('hidden'), 200);
     document.getElementById('settings-breadcrumb')?.classList.remove('open');
   }
@@ -1639,6 +1643,7 @@ function closeSettings(_fromHash) {
   setTimeout(() => {
     if (transitionGen !== _settingsTransitionGen) return;
     settings.classList.remove('active');
+    if (typeof window.updateMobileTabsVisibility === 'function') window.updateMobileTabsVisibility();
 
     // Show board or list view depending on current view
     const listView = document.getElementById('list-view');
@@ -1667,6 +1672,9 @@ function closeSettings(_fromHash) {
     // Re-hide board menu via CSS class (not inline style)
     const menu = document.getElementById('board-menu');
     if (menu) { menu.classList.add('hidden'); menu.classList.remove('visible'); }
+    const pickerMenu = document.getElementById('settings-picker-menu');
+    if (pickerMenu) { pickerMenu.classList.add('hidden'); pickerMenu.classList.remove('visible'); }
+    if (typeof window.dockHeaderMenus === 'function') window.dockHeaderMenus();
   }, 120);
 }
 

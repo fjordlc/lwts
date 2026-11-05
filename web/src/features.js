@@ -670,6 +670,9 @@ function applyFilters() {
     }
   });
 
+  // The column tabs on phones show the same filtered counts
+  if (typeof window.updateMobileTabCounts === 'function') window.updateMobileTabCounts();
+
   // Hide any epic lane (including ungrouped) that has zero visible cards
   document.querySelectorAll('.epic-lane').forEach(lane => {
     const visibleCards = lane.querySelectorAll('.card:not(.search-hidden)').length;

@@ -1000,6 +1000,8 @@ body.light-theme .lwts-modal a[href]:hover {
     gap: 0 16px;
     width: 100%;
   }
+  /* Two properties per line: each row draws one divider under its label and
+     value, instead of each cell drawing its own (which left a gap between) */
   .detail-sidebar .detail-field-row {
     display: flex;
     align-items: center;
@@ -1007,10 +1009,16 @@ body.light-theme .lwts-modal a[href]:hover {
     width: calc(50% - 8px);
     min-width: 0;
     box-sizing: border-box;
+    border-bottom: 1px solid var(--border-faint);
+    padding: 6px 0;
   }
   .detail-sidebar .detail-field-row td {
-    padding: 6px 0;
+    padding: 0;
     display: inline;
+    border-bottom: 0;
+  }
+  .detail-sidebar .detail-field-row .detail-field-text {
+    align-self: center;
   }
   .detail-sidebar .detail-field-label {
     font-size: 0.7rem;

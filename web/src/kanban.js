@@ -559,9 +559,15 @@ function render() {
   // Add unfurl classes BEFORE appending to DOM to avoid 1-frame flash.
   // Stagger is capped (see _unfurlDelayMs) so a big board paints in <1s, and
   // honors prefers-reduced-motion.
+  // Not on phones: there only the active column is shown, and the mobile
+  // stylesheet animates its cards whenever a column becomes active. Cards in
+  // the hidden columns never run (or end) their unfurl, so they kept its
+  // delay and appeared late when their tab was opened; WebKit can even hold
+  // a card created in a display:none column at the animation's opacity 0.
   const reduceMotion = typeof window !== 'undefined' && window.matchMedia
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (animate && !reduceMotion) {
+  const singleColumn = window.innerWidth <= 768;
+  if (animate && !reduceMotion && !singleColumn) {
     let globalIdx = 0;
     const cards = frag.querySelectorAll('.column-body .card');
     for (const card of cards) {
@@ -1317,6 +1323,8 @@ function submitCreateFromDetail() {
 // DETAIL VIEW MODAL
 // ═══════════════════════════════════════════════════════════════
 
+// The sidebar's dropdowns pass floatOnMobile: on phones the sidebar is a narrow,
+// clipping strip under the description, which would cut their menus off.
 function initDetailDropdowns() {
   const colOpts = COLUMNS.map(c => ({ value: c.id, label: c.label }));
   const tagOpts = Object.entries(TAG_LABELS).map(([val, label]) => ({
@@ -1326,25 +1334,25 @@ function initDetailDropdowns() {
   const userOpts = USERS.map(u => ({ value: u.value, label: u.label }));
 
   ddDetailColumn = new window.FnDropdown(document.getElementById('detail-column'), {
-    value: 'todo', options: colOpts, onChange: (v) => detailFieldChanged('column', v),
+    floatOnMobile: true, value: 'todo', options: colOpts, onChange: (v) => detailFieldChanged('column', v),
   });
   ddDetailTag = new window.FnDropdown(document.getElementById('detail-tag'), {
     value: 'blue', options: tagOpts, onChange: (v) => detailFieldChanged('tag', v),
   });
   ddDetailPriority = new window.FnDropdown(document.getElementById('detail-priority'), {
-    value: 'medium', options: priOpts, onChange: (v) => detailFieldChanged('priority', v),
+    floatOnMobile: true, value: 'medium', options: priOpts, onChange: (v) => detailFieldChanged('priority', v),
   });
   ddDetailReporter = new window.FnDropdown(document.getElementById('detail-reporter'), {
-    value: 'you', options: userOpts, onChange: (v) => detailFieldChanged('reporter', v),
+    floatOnMobile: true, value: 'you', options: userOpts, onChange: (v) => detailFieldChanged('reporter', v),
   });
   ddDetailAssignee = new window.FnDropdown(document.getElementById('detail-assignee'), {
-    value: 'unassigned', options: userOpts, onChange: (v) => detailFieldChanged('assignee', v),
+    floatOnMobile: true, value: 'unassigned', options: userOpts, onChange: (v) => detailFieldChanged('assignee', v),
   });
 
   // Project dropdown — populated from boardList
   const projectOpts = boardList.map(b => ({ value: b.id, label: b.name }));
   ddDetailProject = new window.FnDropdown(document.getElementById('detail-project'), {
-    value: currentBoardId || (boardList[0] && boardList[0].id) || '', options: projectOpts,
+    floatOnMobile: true, value: currentBoardId || (boardList[0] && boardList[0].id) || '', options: projectOpts,
     onChange: (v) => {
       if (_isCreateMode && !detailCard) {
         renderDetailCustomFields(v, _pendingCustomFields);
@@ -1368,7 +1376,7 @@ function _refreshEpicDropdown() {
   const epicEl = document.getElementById('detail-epic');
   if (epicEl) epicEl.innerHTML = '';
   ddDetailEpic = new window.FnDropdown(epicEl, {
-    value: '', options: epicOpts, onChange: (v) => {
+    floatOnMobile: true, value: '', options: epicOpts, onChange: (v) => {
       if (_isCreateMode && !detailCard) {
         // New card: remember the choice; it is sent when the card is created.
         _pendingEpic = v || null;
@@ -1787,6 +1795,7 @@ function renderDetailCustomFields(boardId, values) {
       if (!def.required) opts.push({ value: '', label: 'None' });
       (def.options || []).forEach(opt => opts.push({ value: opt.id, label: opt.label, dot: opt.color || '' }));
       detailCustomDropdowns[def.id] = new window.FnDropdown(dropdownEl, {
+        floatOnMobile: true,
         value: currentValues[def.id] || '',
         options: opts,
         onChange: (v) => customFieldChanged(def.id, v || ''),
@@ -2499,7 +2508,7 @@ function toggleBoardPicker() {
   const isHidden = menu.classList.contains('hidden');
   if (isHidden) {
     menu.classList.remove('hidden');
-    requestAnimationFrame(() => menu.classList.add('visible'));
+    requestAnimationFrame(() => { menu.classList.add('visible'); dockHeaderMenus(); });
     picker.classList.add('open');
     document.addEventListener('click', closeBoardPickerOnClick, true);
   } else {
@@ -2507,9 +2516,40 @@ function toggleBoardPicker() {
   }
 }
 
+// On phones the board menu (and the settings page's picker, which shares its
+// look) is the app's main navigation: it spans the screen right under the
+// header and pushes the page down, instead of floating off the right edge
+// over the filter bar and the first cards.
+function dockHeaderMenus() {
+  const header = document.querySelector('#app-board .header') || document.querySelector('.header');
+  if (!header) return;
+  const phone = window.innerWidth <= 768;
+  let pushed = 0;
+  ['board-menu', 'settings-picker-menu'].forEach(id => {
+    const menu = document.getElementById(id);
+    if (!menu) return;
+    const docked = phone && menu.classList.contains('visible') && !!menu.parentElement;
+    menu.classList.toggle('header-menu-docked', docked);
+    if (!docked) {
+      ['top', 'left', 'right', 'width'].forEach(p => menu.style.removeProperty(p));
+      return;
+    }
+    // The menu is positioned against its picker; line it up with the screen.
+    const hr = header.getBoundingClientRect();
+    const pr = menu.parentElement.getBoundingClientRect();
+    menu.style.top = Math.round(hr.bottom - pr.top) + 'px';
+    menu.style.left = Math.round(-pr.left) + 'px';
+    menu.style.right = 'auto';
+    menu.style.width = '100vw';
+    pushed = Math.max(pushed, menu.offsetHeight);
+  });
+  header.style.marginBottom = pushed ? pushed + 'px' : '';
+}
+
 function closeBoardPicker() {
   const menu = document.getElementById('board-menu');
   menu.classList.remove('visible');
+  dockHeaderMenus();
   document.getElementById('board-picker').classList.remove('open');
   setTimeout(() => menu.classList.add('hidden'), 200);
   document.removeEventListener('click', closeBoardPickerOnClick, true);
@@ -3233,6 +3273,7 @@ window.getDefaultBoardId = getDefaultBoardId;
 window.loadFromLocalStorage = loadFromLocalStorage;
 window.save = save;
 window.render = render;
+window.dockHeaderMenus = dockHeaderMenus;
 window._scheduleColumnHeightSync = _scheduleColumnHeightSync;
 window.createCardEl = createCardEl;
 window.onDragStart = onDragStart;

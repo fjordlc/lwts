@@ -237,3 +237,13 @@
 .fn-dropdown.compact .fn-dropdown-search-input {
   font-size: 0.82rem;
 }
+
+/* Lifted into <body> on phones (FnDropdown floatOnMobile); placed by _float() */
+.fn-dropdown-menu.fn-dropdown-floating {
+  position: fixed;
+  right: auto;
+  width: max-content;
+  min-width: 160px;
+  max-width: calc(100vw - 32px);
+  z-index: 30000;
+}

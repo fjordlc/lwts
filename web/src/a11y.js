@@ -199,6 +199,7 @@ function initMobileColumnTabs() {
     insertAfter.parentNode.insertBefore(tabs, insertAfter.nextSibling);
   }
 
+  updateMobileTabsVisibility();
   applyMobileActiveColumn();
 }
 
@@ -212,7 +213,18 @@ function switchMobileTab(colId) {
   });
 
   applyMobileActiveColumn();
+  resetMobileBoardScroll();
   announce(`Showing ${colId.replace('-', ' ')} column`);
+}
+
+// All columns share the board's scroll container, so a newly opened column
+// would otherwise start at the previous column's scroll offset.
+function resetMobileBoardScroll() {
+  const board = document.getElementById('board');
+  if (!board) return;
+  board.scrollTop = 0;
+  // WebKit can keep the previous column's scroll range for a frame.
+  requestAnimationFrame(() => { board.scrollTop = 0; });
 }
 
 function applyMobileActiveColumn() {
@@ -233,14 +245,29 @@ function applyMobileActiveColumn() {
   });
 }
 
+// Tab counts follow the active filters, like the column headers on wide screens:
+// count the rendered cards that the filters leave visible.
 function updateMobileTabCounts() {
   if (typeof window.COLUMNS === 'undefined' || typeof window.state === 'undefined') return;
   document.querySelectorAll('.mobile-tab').forEach(tab => {
     const colId = tab.dataset.col;
-    const count = (window.state[colId] || []).length;
+    const bodies = document.querySelectorAll(`#board .column-body[data-col="${colId}"]`);
+    const count = bodies.length
+      ? Array.from(bodies).reduce((n, b) => n + b.querySelectorAll('.card:not(.search-hidden)').length, 0)
+      : (window.state[colId] || []).length;
     const countEl = tab.querySelector('.tab-count');
     if (countEl) countEl.textContent = count;
   });
+}
+
+// The column tabs only make sense on the board: hide them in the list view
+// (which shows every column) and while settings is open.
+function updateMobileTabsVisibility() {
+  const tabs = document.getElementById('mobile-column-tabs');
+  if (!tabs) return;
+  const settings = document.getElementById('settings-page');
+  const off = window.currentView === 'list' || !!(settings && settings.classList.contains('active'));
+  tabs.classList.toggle('mobile-tabs-off', off);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -304,5 +331,6 @@ window.initMobileColumnTabs = initMobileColumnTabs;
 window.switchMobileTab = switchMobileTab;
 window.applyMobileActiveColumn = applyMobileActiveColumn;
 window.updateMobileTabCounts = updateMobileTabCounts;
+window.updateMobileTabsVisibility = updateMobileTabsVisibility;
 window.announce = announce;
 window.initLiveRegion = initLiveRegion;

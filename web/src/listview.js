@@ -54,6 +54,7 @@ function switchView(view) {
   currentView = view;
   window.currentView = view;
   localStorage.setItem('lwts-view', view);
+  if (typeof window.updateMobileTabsVisibility === 'function') window.updateMobileTabsVisibility();
 
   const board = document.getElementById('board');
   const listView = document.getElementById('list-view');

@@ -343,7 +343,7 @@
   }
   .header-search-input {
     font-size: 0.72rem;
-    padding: 0 6px 0 26px;
+    padding: 0 22px 0 26px; /* room for the clear button */
     width: 100% !important;
   }
   .header-search-input:focus {
@@ -377,6 +377,16 @@
     width: calc(100vw - 24px);
     border-radius: 0 0 10px 10px;
   }
+  /* Open, it spans the screen under the header and pushes the page down
+     (dockHeaderMenus in kanban.js sets its position and the header's margin) */
+  .header-board-menu.header-menu-docked {
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    box-shadow: none;
+    transform: none;
+    background: var(--board-header-bg, var(--page-bg-alt));
+  }
 
   /* Mobile column tabs */
   .mobile-column-tabs {
@@ -387,6 +397,9 @@
     border-bottom: 1px solid var(--border-faint);
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+  }
+  .mobile-column-tabs.mobile-tabs-off {
+    display: none;
   }
   .mobile-tab {
     flex: 1;
@@ -533,6 +546,19 @@
   }
   .presence-overflow {
     display: flex;
+  }
+}
+
+/* iOS Safari zooms the page into any focused field whose text is under 16px */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select,
+  [contenteditable=""],
+  [contenteditable="true"],
+  [contenteditable=""] *,
+  [contenteditable="true"] * {
+    font-size: 16px !important;
   }
 }
 
