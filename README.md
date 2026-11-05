@@ -72,6 +72,7 @@ branch so it can be taken on its own (branches marked *builds on* need the one t
 | Opening a card (browser Back/Forward, a `#KEY` link) while the new-card form is open no longer loads it into the form or saves a copy | `fix/reopen-card-while-creating` |
 | The due date picker stays inside the window instead of running off the bottom | `fix/due-date-picker-placement` |
 | The status list in a card follows the current board's columns | `fix/status-options-per-board` |
+| **Editor and profile polish** — the description and comment editors grow with their text and keep the column's edge, with Save/Cancel on the right; Profile in the avatar menu edits your own avatar from any page (members too), and a new avatar shows at once | `fix/dropzone-and-editor-polish` |
 
 ### Features
 
