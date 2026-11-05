@@ -1188,6 +1188,10 @@ function _renderBotsSection(bots, container) {
   if (_isAdmin()) container.appendChild(_teamAddRow('Create bot', 'openCreateBotModal'));
 }
 
+function _escAttr(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 // Phones show the role as a small pill beside the name (the badge on the right is hidden there).
 function _rolePill(role, label) {
   return '<span class="settings-user-role-badge settings-user-role-pill ' + _escAttr(role) + '">' + _escAttr(label) + '</span>';

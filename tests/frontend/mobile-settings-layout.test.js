@@ -48,7 +48,7 @@ async function load({ me = 'u-boss' } = {}) {
   w.CSS = { escape: (s) => String(s) };
   w.parseBoardSettings = (raw) => JSON.parse(raw || '{}');
   w.Auth = { getUser: () => ({ id: user.id, role: user.role }), redirectToLogin() {} };
-  for (const f of ['dropdown.js', 'kanban.js', 'settings.js', 'listview.js', 'features.js', 'sidepane.js', 'members.js']) {
+  for (const f of ['dropdown.js', 'kanban.js', 'settings.js', 'listview.js', 'features.js', 'sidepane.js']) {
     w.eval(`(function () {\n${read('web/src/' + f)}\n})();`);
   }
   await loaded;
