@@ -58,16 +58,16 @@ await mobile.waitForTimeout(1500);
 
 // 4. The board on a phone: column tabs and the bottom bar
 await mobile.locator('.mobile-tab', { hasText: 'In Progress' }).first().click();
-await phoneShot('sc-phone-1.png');
+await phoneShot('phone-board.png');
 
 // 5. The Filter sheet
 await mobile.click('#mobile-nav-filter');
-await phoneShot('sc-phone-2.png');
+await phoneShot('phone-filter.png');
 await mobile.click('#mobile-nav-filter');
 
 // 6. Account > Settings in the sheet, with the board behind it
 await mobile.click('.mobile-nav-btn[data-sheet="account"]');
 await mobile.locator('#mobile-sheet .header-user-item', { hasText: 'Settings' }).click();
-await phoneShot('sc-phone-3.png');
+await phoneShot('phone-settings.png');
 
 await browser.close();

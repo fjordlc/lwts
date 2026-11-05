@@ -26,5 +26,5 @@ it somewhere else. Stop the server with `kill $(cat "$LWTS_DEMO_DIR/lwts.pid")`.
 
 ```sh
 npm install --no-save playwright && npx playwright install chromium
-node docs/demo/screenshots.mjs http://localhost:8090     # writes docs/img/sc-1.png to sc-3.png and sc-phone-1.png to sc-phone-3.png
+node docs/demo/screenshots.mjs http://localhost:8090     # writes docs/img/sc-1.png to sc-3.png and phone-board.png, phone-filter.png and phone-settings.png
 ```
