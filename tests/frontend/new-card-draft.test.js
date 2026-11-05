@@ -126,3 +126,16 @@ describe('saving the new card directly', () => {
     assert.equal(drafts(w).length, 0);
   });
 });
+
+describe('placeholder style', () => {
+  it("is outlined in the theme's selection colour", () => {
+    const css = read('web/styles/board.css');
+    const rule = css.match(/\.card\[data-id="draft-new-card"\]\s*\{([^}]*)\}/);
+    assert.ok(rule, 'has a rule for the placeholder card');
+    assert.match(rule[1], /outline:[^;]*var\(--card-selected\)/);
+    const theme = read('web/styles/theme.css');
+    assert.match(theme, /:root\s*\{[^}]*--card-selected:/, 'dark theme defines it');
+    assert.match(theme, /body\.light-theme\s*\{[^}]*--card-selected:/, 'light theme defines it');
+    assert.doesNotMatch(rule[1], /#[0-9a-f]{3,6}/i, 'no fixed colour');
+  });
+});

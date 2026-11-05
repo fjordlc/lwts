@@ -634,9 +634,9 @@ body.light-theme .epic-lane {
 /* Placeholder for the card being created; it mirrors the open create form and is never saved */
 .card[data-id="draft-new-card"] {
   pointer-events: none;
-  outline: 2px solid var(--accent, #579DFF);
+  outline: 2px solid var(--card-selected);
   outline-offset: -2px;
-  box-shadow: 0 0 0 2px var(--accent, #579DFF) inset;
+  box-shadow: 0 0 0 2px var(--card-selected) inset;
 }
 
 .card {
