@@ -25,13 +25,14 @@
 > The original code is copyright © 2025 Andreas Echavez and licensed under [MIT](LICENSE). The LWTS name and logo belong to him.
 > This fork adds bug fixes and features, which are also released under the [MIT](LICENSE) license; changes that fit the original
 > project are offered upstream as pull requests.
+> The screenshots show the [demo board](docs/demo/README.md), an affectionate nod to a well-known dinosaur film.
 
 ---
 
 <p align="center">
   <img src="docs/img/sc-2.png" alt="Kanban Board" width="32%" />
-  <img src="docs/img/sc-1.png" alt="Card Detail" width="32%" />
-  <img src="docs/img/sc-3.png" alt="Settings" width="32%" />
+  <img src="docs/img/sc-1.png" alt="Card detail in the side pane" width="32%" />
+  <img src="docs/img/sc-3.png" alt="New card on the board" width="32%" />
 </p>
 
 ---
