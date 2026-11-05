@@ -25,7 +25,6 @@
 > The original code is copyright © 2025 Andreas Echavez and licensed under [MIT](LICENSE). The LWTS name and logo belong to him.
 > This fork adds bug fixes and features, which are also released under the [MIT](LICENSE) license; changes that fit the original
 > project are offered upstream as pull requests.
-> The screenshots show the [demo board](docs/demo/README.md), an affectionate nod to a well-known dinosaur film.
 
 ---
 
@@ -40,6 +39,8 @@
   <img src="docs/img/sc-phone-2.png" alt="The Filter sheet on a phone" width="24%" />
   <img src="docs/img/sc-phone-3.png" alt="Settings in the sheet on a phone" width="24%" />
 </p>
+
+<p align="center"><sub>The <a href="docs/demo/README.md">demo board</a> was used to make these screenshots.</sub></p>
 
 ---
 

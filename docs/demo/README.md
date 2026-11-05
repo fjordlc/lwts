@@ -3,8 +3,7 @@
 A tongue-in-cheek demo board for the README screenshots: the kanban board of a dinosaur theme park on the day a few
 experts come to visit. What could possibly go wrong.
 
-It is an affectionate, unofficial nod to a well-known dinosaur film and is not affiliated with it in any way. The
-cards, comments and descriptions are written for this demo.
+The cards, comments and descriptions are written for this demo.
 
 ## Run it
 
