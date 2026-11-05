@@ -43,9 +43,14 @@ function open(opts) {
 }
 
 describe('due date picker placement', () => {
-  it('opens below the field when it fits (unchanged)', () => {
+  it('opens above the field when there is room, even if it would also fit below', () => {
     const { top } = open({ innerHeight: 1200, field: { top: 490, left: 940 }, pickerHeight: 350 });
-    assert.equal(top(), 516);
+    assert.equal(top(), 490 - 6 - 350);
+  });
+
+  it('opens below the field when there is no room above it', () => {
+    const { top } = open({ innerHeight: 1200, field: { top: 100, left: 940 }, pickerHeight: 350 });
+    assert.equal(top(), 100 + 20 + 6);
   });
 
   it('opens above the field when it would run past the bottom of the window', () => {

@@ -879,19 +879,20 @@ function _calendarKeydown(e) {
   if (e.key === 'Escape') closeDueDatePicker();
 }
 
-// Open below the due date field; when that would run past the bottom of the window (the field is
-// the last row of the sidebar), open above it instead. Always keep the picker inside the window.
-// The height changes between 5- and 6-week months, so this also runs after each render.
+// Open above the due date field when there is room: it is the last row of the card sidebar and of
+// the side pane, where a picker below it would run off the window. Otherwise open below. Always keep
+// the picker inside the window. The height changes between 5- and 6-week months, so this also runs
+// after each render.
 function _placeDueDatePicker(picker) {
   const textEl = document.getElementById('detail-duedate-text');
   if (!textEl || !picker.isConnected) return;
   const rect = textEl.getBoundingClientRect();
   const h = picker.offsetHeight, w = picker.offsetWidth, margin = 8, gap = 6;
-  let top = rect.bottom + gap;
-  let above = false;
-  if (top + h > window.innerHeight - margin && rect.top - gap - h >= margin) {
-    top = rect.top - gap - h;
-    above = true;
+  let top = rect.top - gap - h;
+  let above = true;
+  if (top < margin) {
+    top = rect.bottom + gap;
+    above = false;
   }
   top = Math.max(margin, Math.min(top, window.innerHeight - h - margin));
   picker.style.top = top + 'px';
