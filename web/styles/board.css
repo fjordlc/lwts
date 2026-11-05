@@ -1123,6 +1123,62 @@ body:not(.light-theme) .column-empty {
   color: var(--text-primary);
 }
 
+/* Search, filters and view controls share the filter row (features.js).
+   The search box is one column wide, so the filters start at the second
+   column, and the row ends at the last column's edge. */
+.filter-bar {
+  box-sizing: border-box;
+  max-width: var(--filter-columns-width, none);
+}
+.filter-bar > .filter-group {
+  flex: 1 1 0;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.filter-search-toggle {
+  display: none;
+}
+.filter-bar > .filter-bar-search {
+  flex: 0 1 auto;
+  width: var(--filter-column-width, 240px);
+  min-width: 160px;
+  margin-right: calc(var(--board-gap) - 8px);
+  z-index: 60;
+}
+.filter-bar-search .header-search-input,
+.filter-bar-search .header-search-input:focus {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0 28px 0 30px;
+  border-color: var(--border-light);
+  background: transparent;
+}
+.filter-bar-search .header-search-icon {
+  left: 10px;
+}
+.filter-bar-search .header-search-results {
+  left: 0;
+  right: auto;
+  width: min(380px, calc(100vw - 16px));
+}
+.filter-group > .filter-status:empty {
+  display: none;
+}
+.filter-view-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.filter-view-group .view-switcher {
+  border-color: var(--border-light);
+}
+.filter-view-group .filter-menu {
+  left: auto;
+  right: 0;
+}
+
 body:is([data-board-theme="summer-duotone"], [data-board-theme="round-geometric"], [data-board-theme="squares"], [data-board-theme="space-doodles"], [data-board-theme="deep-cosmos"], [data-board-theme="space"], [data-board-theme="aurora"], [data-board-theme="blueprint"]) .epic-lane {
   background: rgba(6, 8, 12, var(--board-pattern-shell-alpha, 0.05));
   border-color: var(--board-pattern-border, rgba(255,255,255,0.08));

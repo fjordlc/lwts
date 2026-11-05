@@ -201,6 +201,7 @@ function initMobileColumnTabs() {
 
   updateMobileTabsVisibility();
   applyMobileActiveColumn();
+  requestAnimationFrame(revealActiveMobileTab);
 }
 
 function switchMobileTab(colId) {
@@ -214,7 +215,19 @@ function switchMobileTab(colId) {
 
   applyMobileActiveColumn();
   resetMobileBoardScroll();
+  revealActiveMobileTab();
   announce(`Showing ${colId.replace('-', ' ')} column`);
+}
+
+// The tabs scroll sideways when the columns do not fit: keep the active one in view.
+function revealActiveMobileTab() {
+  const tab = document.querySelector('.mobile-column-tabs .mobile-tab.active');
+  const bar = tab && tab.parentElement;
+  if (!bar || bar.scrollWidth <= bar.clientWidth) return;
+  const want = tab.offsetLeft - (bar.clientWidth - tab.offsetWidth) / 2;
+  if (Math.abs(bar.scrollLeft - want) <= 4) return;
+  if (typeof bar.scrollTo === 'function') bar.scrollTo({ left: want, behavior: 'smooth' });
+  else bar.scrollLeft = want;
 }
 
 // All columns share the board's scroll container, so a newly opened column
@@ -328,6 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
 window.applyARIA = applyARIA;
 window.wireA11yAnnouncements = wireA11yAnnouncements;
 window.initMobileColumnTabs = initMobileColumnTabs;
+window.revealActiveMobileTab = revealActiveMobileTab;
 window.switchMobileTab = switchMobileTab;
 window.applyMobileActiveColumn = applyMobileActiveColumn;
 window.updateMobileTabCounts = updateMobileTabCounts;

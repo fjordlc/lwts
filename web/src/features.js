@@ -399,6 +399,9 @@ function initFilterBar() {
   bar.id = 'filter-bar';
   bar.className = 'filter-bar';
   bar.innerHTML = `
+    <button type="button" class="filter-search-toggle" aria-label="Search cards" onclick="openFilterBarSearch()">
+      <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
     <div class="filter-group">
       <div class="filter-dropdown" id="filter-assignee-wrap">
         <button class="filter-btn" onclick="toggleFilterDropdown('assignee')">
@@ -424,18 +427,23 @@ function initFilterBar() {
         </button>
         <div class="filter-menu hidden" id="filter-tag-menu"></div>
       </div>
-      <div class="filter-dropdown" id="filter-density-wrap">
-        <button class="filter-btn" onclick="toggleFilterDropdown('density')">
-          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-          <span id="density-toggle-label">Default</span>
-        </button>
-        <div class="filter-menu hidden" id="filter-density-menu"></div>
+      <div class="filter-status" id="filter-status"></div>
+      <div class="filter-view-group" id="filter-view-group">
+        <div class="filter-dropdown" id="filter-density-wrap">
+          <button class="filter-btn" onclick="toggleFilterDropdown('density')">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+            <span id="density-toggle-label">Default</span>
+          </button>
+          <div class="filter-menu hidden" id="filter-density-menu"></div>
+        </div>
       </div>
     </div>
-    <div class="filter-status" id="filter-status"></div>
   `;
 
-  board.parentNode.insertBefore(bar, board);
+  // Keep the bar above the phone column tabs, whichever was created first.
+  const tabs = document.getElementById('mobile-column-tabs');
+  board.parentNode.insertBefore(bar, tabs && tabs.parentNode === board.parentNode ? tabs : board);
+  moveHeaderControlsIntoFilterBar(bar);
 
   // Build dropdown contents
   buildFilterCheckboxes('assignee', window.USERS.filter(u => u.value !== 'unassigned').map(u => ({ value: u.value, label: u.label })));
@@ -446,12 +454,89 @@ function initFilterBar() {
   buildDensityOptions();
   initDensityToggleLabel();
 
-  // Close dropdowns on outside click
+  // Close dropdowns on outside click (an open menu may be lifted into <body> on phones)
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.filter-dropdown')) {
+    if (!e.target.closest('.filter-dropdown, .filter-menu')) {
       document.querySelectorAll('.filter-menu').forEach(m => m.classList.add('hidden'));
     }
   });
+
+  syncFilterBarToColumns();
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(() => syncFilterBarToColumns()).observe(board);
+  }
+  window.addEventListener('resize', () => { syncFilterBarToColumns(); closeFilterBarSearchIfIdle(); });
+}
+
+// One row above the board holds search, the filters and the view controls
+// (density and board/list switch). The search box and the view switcher start
+// out in the header markup; their nodes move here so their listeners stay.
+// On wide screens the search box sits first and is exactly one column wide, so
+// the filters line up with the second column and the view controls end at the
+// last column. On phones the row scrolls sideways and search is an icon that
+// opens the box in place.
+function moveHeaderControlsIntoFilterBar(bar) {
+  const search = document.getElementById('header-search-wrap');
+  const toggle = bar.querySelector('.filter-search-toggle');
+  if (search && toggle) {
+    search.classList.add('filter-bar-search');
+    toggle.after(search);
+    const input = document.getElementById('header-search');
+    if (input) {
+      input.addEventListener('input', fitFilterBarSearch);
+      input.addEventListener('focusout', () => setTimeout(closeFilterBarSearchIfIdle, 150));
+    }
+    const clear = document.getElementById('header-search-clear');
+    if (clear) clear.addEventListener('click', () => setTimeout(closeFilterBarSearchIfIdle, 0));
+  }
+  const switcher = document.querySelector('.header-actions > .view-switcher');
+  const viewGroup = bar.querySelector('.filter-view-group');
+  if (switcher && viewGroup) viewGroup.appendChild(switcher);
+}
+
+function isNarrowScreen() {
+  return window.innerWidth <= 768;
+}
+
+function openFilterBarSearch() {
+  const bar = document.getElementById('filter-bar');
+  if (!bar) return;
+  bar.classList.add('search-open');
+  fitFilterBarSearch();
+  const input = document.getElementById('header-search');
+  if (input) input.focus();
+}
+
+// On phones the open search box closes again once it is empty and unfocused.
+function closeFilterBarSearchIfIdle() {
+  const bar = document.getElementById('filter-bar');
+  const input = document.getElementById('header-search');
+  if (!bar || !bar.classList.contains('search-open')) return;
+  if (isNarrowScreen() && input && (input.value || document.activeElement === input)) return;
+  bar.classList.remove('search-open');
+}
+
+// On phones the open search box grows with its text.
+function fitFilterBarSearch() {
+  const input = document.getElementById('header-search');
+  if (input) input.style.setProperty('--search-chars', Math.max(10, input.value.length + 1) + 'ch');
+}
+
+// Columns stretch with the window, so their width is measured: the search box
+// takes one column's width and the bar stops at the last column's edge.
+function syncFilterBarToColumns() {
+  const bar = document.getElementById('filter-bar');
+  const board = document.getElementById('board');
+  if (!bar || !board) return;
+  const cols = Array.from(board.querySelectorAll('.column, .board-column-headers .column-header'))
+    .filter(c => c.offsetWidth > 0);
+  if (!cols.length) return; // list view, settings or phones: keep the last layout
+  const width = cols[0].getBoundingClientRect().width;
+  const last = cols[cols.length - 1].getBoundingClientRect();
+  const pad = parseFloat(getComputedStyle(board).paddingRight) || 0;
+  const total = last.right - board.getBoundingClientRect().left + board.scrollLeft + pad;
+  bar.style.setProperty('--filter-column-width', Math.round(width) + 'px');
+  bar.style.setProperty('--filter-columns-width', Math.round(total) + 'px');
 }
 
 const DENSITY_OPTIONS = [
@@ -579,7 +664,28 @@ function toggleFilterDropdown(type) {
   // Close all menus
   document.querySelectorAll('.filter-menu').forEach(m => m.classList.add('hidden'));
 
-  if (wasHidden) menu.classList.remove('hidden');
+  if (!wasHidden) return;
+  // Menus open next to their button again after a phone has lifted them out.
+  const wrap = document.getElementById(`filter-${type}-wrap`);
+  if (wrap && menu.parentNode !== wrap) {
+    wrap.appendChild(menu);
+    menu.classList.remove('filter-menu-lifted');
+    menu.style.top = menu.style.maxHeight = '';
+  }
+  menu.classList.remove('hidden');
+  if (isNarrowScreen()) liftFilterMenu(menu);
+}
+
+// On phones the filter row scrolls sideways and so clips anything inside it:
+// an open menu moves into <body>, full width under the bar.
+function liftFilterMenu(menu) {
+  const bar = document.getElementById('filter-bar');
+  if (!bar) return;
+  const bottom = Math.round(bar.getBoundingClientRect().bottom);
+  document.body.appendChild(menu);
+  menu.classList.add('filter-menu-lifted');
+  menu.style.top = (bottom + 4) + 'px';
+  menu.style.maxHeight = `calc(100dvh - ${bottom + 16}px)`;
 }
 
 function onFilterCheckbox(type, checkbox) {
@@ -1389,6 +1495,7 @@ if (_origRender) {
   window.render = function() {
     _origRender();
     initFilterBar();
+    syncFilterBarToColumns();
     injectDueDateChips();
     // Re-apply filters if any are active
     if (activeFilters.assignees.length || activeFilters.priorities.length ||
@@ -1441,6 +1548,8 @@ window.selectDensity = selectDensity;
 window.initDensityToggleLabel = initDensityToggleLabel;
 window.buildFilterCheckboxes = buildFilterCheckboxes;
 window.toggleFilterDropdown = toggleFilterDropdown;
+window.openFilterBarSearch = openFilterBarSearch;
+window.syncFilterBarToColumns = syncFilterBarToColumns;
 window.onFilterCheckbox = onFilterCheckbox;
 window.onFilterSearch = onFilterSearch;
 window.applyFilters = applyFilters;

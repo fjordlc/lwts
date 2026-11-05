@@ -316,8 +316,9 @@
   }
   #board-picker-label {
     display: inline-block;
-    max-width: 1ch;
+    max-width: 14ch;
     overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
     vertical-align: bottom;
     font-weight: 600;
@@ -351,6 +352,7 @@
   }
   .header-user-menu {
     flex-shrink: 0;
+    margin-left: auto;
   }
   .header-user-avatar {
     width: 28px;
@@ -401,10 +403,17 @@
   .mobile-column-tabs.mobile-tabs-off {
     display: none;
   }
+  .mobile-column-tabs {
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+  }
+  .mobile-column-tabs::-webkit-scrollbar {
+    display: none;
+  }
   .mobile-tab {
-    flex: 1;
-    min-width: 0;
-    padding: 10px 8px;
+    flex: 1 0 auto;
+    min-width: auto;
+    padding: 10px 12px;
     font-size: 0.75rem;
     font-weight: 500;
     color: var(--text-dimmed);
@@ -512,7 +521,7 @@
   }
   .filter-dropdown {
     position: static;
-    flex: 1;
+    flex: 1 0 auto;
     display: flex;
   }
   .filter-menu {
@@ -524,13 +533,66 @@
     min-width: auto;
     z-index: 2000;
   }
+  .filter-menu.filter-menu-lifted {
+    overflow-y: auto;
+  }
   .filter-btn {
     font-size: 0.75rem;
-    padding: 4px 0;
+    padding: 4px 10px;
     height: 36px;
     white-space: nowrap;
     width: 100%;
     justify-content: center;
+  }
+  /* The row scrolls sideways when the filters and view controls do not fit */
+  .filter-bar > .filter-group {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .filter-bar > .filter-group::-webkit-scrollbar {
+    display: none;
+  }
+  .filter-group > .filter-status {
+    display: none;
+  }
+  .filter-view-group {
+    margin-left: 0;
+  }
+  .filter-view-group .view-switcher {
+    height: 36px;
+  }
+  /* Search is an icon at the start of the row; it opens the box in place */
+  .filter-bar > .filter-search-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 36px;
+    height: 36px;
+    margin-right: 4px;
+    padding: 0;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+  .filter-bar.search-open > .filter-search-toggle {
+    display: none;
+  }
+  .filter-bar.search-open > .filter-bar-search {
+    display: flex;
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    margin-right: 4px;
+  }
+  .filter-bar-search .header-search-input,
+  .filter-bar-search .header-search-input:focus {
+    height: 36px;
+    width: calc(var(--search-chars, 10ch) + 58px) !important;
+    max-width: 60vw;
   }
   .filter-search {
     width: 100%;

@@ -496,6 +496,9 @@ body.light-theme .column { background: rgba(0,0,0,0.04); }
 /* Filter buttons — subtle outline style */
 body.light-theme .filter-btn { background: #fff; border: 1px solid rgba(0,0,0,0.15); color: #44546f; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
 body.light-theme .filter-btn:hover { background: #f0f5ff; border-color: #579DFF; color: #2B7DE9; }
+body.light-theme .filter-bar-search .header-search-input,
+body.light-theme .filter-view-group .view-switcher,
+body.light-theme .filter-search-toggle { background: #fff; border-color: rgba(0,0,0,0.15); box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
 
 /* Settings */
 body.light-theme .settings-nav { background: #ebebeb; border-right-color: rgba(0,0,0,0.08); }
