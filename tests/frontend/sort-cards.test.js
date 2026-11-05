@@ -186,6 +186,15 @@ describe('sort button', () => {
     assert.equal(w.moves[0].position, 0);
   });
 
+  it('keeps the order when a card arrives from another session', async () => {
+    const w = await load();
+    w.fromAPI = (c) => card({ ...c, priority: c.priority });
+    w.render();
+    choose(w, 'priority');
+    w.addCardToState({ id: 'n', key: 'ALP-40', title: 'New', column_id: 'todo', priority: 'highest', tag: 'blue' });
+    assert.deepEqual(shown(w), ['c', 'n', 'a', 'b']);
+  });
+
   it('orders the list view too', async () => {
     const w = await load();
     w.render();

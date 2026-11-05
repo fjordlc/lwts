@@ -1490,8 +1490,10 @@ function _refreshEmptyState(body) {
 
 function _surgicalCanApply() {
   // Standard kanban view, not list, not epic-lane mode (which uses a
-  // different DOM tree the surgical helpers don't understand).
-  return !_isListView() && !_isEpicMode() && typeof window.createCardEl === 'function';
+  // different DOM tree the surgical helpers don't understand), and cards
+  // shown in their stored order (a sorted column must be drawn again).
+  const sorted = typeof window.isCardSortActive === 'function' && window.isCardSortActive();
+  return !_isListView() && !_isEpicMode() && !sorted && typeof window.createCardEl === 'function';
 }
 
 function _surgicalAddCard(card, colId, position) {
