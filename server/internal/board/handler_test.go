@@ -242,6 +242,58 @@ func TestBoardUpdateValidatesAndSavesCustomFieldSettings(t *testing.T) {
 	}
 }
 
+func TestBoardUpdateKeepsGroupByFlagAndUnknownSettings(t *testing.T) {
+	_, users, boards, cards, comments := setupTest(t)
+	h := NewHandler(boards, cards, comments, nil)
+	user := createTestUser(t, users)
+	ctx := context.Background()
+	b, _ := boards.Create(ctx, "B", "B", user.ID)
+
+	settings := `{"view_hint":{"x":1},"custom_fields":[{"id":"customer","name":"Customer","type":"text","group_by":true},{"id":"severity","name":"Severity","type":"select","group_by":true,"options":[{"id":"sev1","label":"SEV 1"}]},{"id":"team","name":"Team","type":"select","options":[{"id":"core","label":"Core"}]}]}`
+	body, _ := json.Marshal(updateBoardReq{Settings: &settings})
+
+	mux := http.NewServeMux()
+	mux.Handle("PUT /api/v1/boards/{id}", noopAuth(http.HandlerFunc(h.Update)))
+	mux.Handle("GET /api/v1/boards/{id}", noopAuth(http.HandlerFunc(h.Get)))
+	req := withUser(httptest.NewRequest("PUT", "/api/v1/boards/"+b.ID, bytes.NewReader(body)), user)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status: %d, body: %s", w.Code, w.Body.String())
+	}
+
+	req = withUser(httptest.NewRequest("GET", "/api/v1/boards/"+b.ID, nil), user)
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	var resp struct {
+		Board repo.Board `json:"board"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	got := resp.Board
+	var saved struct {
+		ViewHint     map[string]any   `json:"view_hint"`
+		CustomFields []map[string]any `json:"custom_fields"`
+	}
+	if err := json.Unmarshal([]byte(got.Settings), &saved); err != nil {
+		t.Fatalf("settings: %v (%s)", err, got.Settings)
+	}
+	if saved.ViewHint["x"] != float64(1) {
+		t.Fatalf("unknown settings key lost: %s", got.Settings)
+	}
+	if len(saved.CustomFields) != 3 {
+		t.Fatalf("custom fields = %s", got.Settings)
+	}
+	if _, ok := saved.CustomFields[0]["group_by"]; ok {
+		t.Fatalf("text field kept group_by: %s", got.Settings)
+	}
+	if saved.CustomFields[1]["group_by"] != true {
+		t.Fatalf("choice field lost group_by: %s", got.Settings)
+	}
+	if _, ok := saved.CustomFields[2]["group_by"]; ok {
+		t.Fatalf("group_by added to a field without it: %s", got.Settings)
+	}
+}
+
 func TestBoardUpdateRejectsInvalidCustomFieldSettings(t *testing.T) {
 	_, users, boards, cards, comments := setupTest(t)
 	h := NewHandler(boards, cards, comments, nil)

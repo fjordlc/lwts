@@ -590,6 +590,223 @@ function cardsInDisplayOrder(cards) {
   return cards.slice().sort((a, b) => window.compareCards(a, b, sort.key) * dir);
 }
 
+// ── Group by ──
+// Cards can be shown in horizontal groups (swimlanes) by epic, type,
+// priority, assignee or a choice custom field marked "Add to Group by", or
+// in plain columns ("Off"). Epic is the default on boards with epics, as
+// before; Off on the others. The choice is kept per user and board in this
+// browser. Dragging a card into another group sets that value on the card.
+
+const GROUP_BY_KEY = 'lwts-group-by:';
+const GROUP_BY_LABELS = { epic: 'Epic', off: 'Off', type: 'Type', priority: 'Priority', assignee: 'Assignee' };
+const _groupByMemory = {}; // also keeps the choice when storage is unavailable
+
+function _boardHasEpics() {
+  return COLUMNS.some(col => (state[col.id] || []).some(_isEpicCard));
+}
+
+function _groupByStorageKey(boardId) {
+  const user = (window.Auth && typeof window.Auth.getUser === 'function' && window.Auth.getUser()) || currentUser;
+  return GROUP_BY_KEY + ((user && user.id) || 'anon') + ':' + (boardId || currentBoardId || '');
+}
+
+// Choice custom fields that are offered in the Group by menu.
+function groupByCustomFields(boardId) {
+  return getBoardCustomFields(boardId).filter(f => f && f.type === 'select' && f.group_by && Array.isArray(f.options));
+}
+
+function groupByModes() {
+  const modes = _boardHasEpics() ? ['epic', 'off'] : ['off'];
+  return modes.concat(['type', 'priority', 'assignee'], groupByCustomFields().map(f => 'cf:' + f.id));
+}
+
+function groupByLabel(mode) {
+  if (GROUP_BY_LABELS[mode]) return GROUP_BY_LABELS[mode];
+  const field = groupByCustomFields().find(f => 'cf:' + f.id === mode);
+  return field ? field.name : mode;
+}
+
+function defaultGroupBy() {
+  return _boardHasEpics() ? 'epic' : 'off';
+}
+
+// The current board's grouping; a remembered one that no longer applies
+// (no epics left, the field was removed from Group by) falls back to the default.
+function currentGroupBy() {
+  const key = _groupByStorageKey();
+  if (!(key in _groupByMemory)) {
+    let saved = null;
+    try { saved = localStorage.getItem(key); } catch { saved = null; }
+    _groupByMemory[key] = saved;
+  }
+  const mode = _groupByMemory[key];
+  return mode && groupByModes().includes(mode) ? mode : defaultGroupBy();
+}
+
+function setGroupBy(mode) {
+  const key = _groupByStorageKey();
+  _groupByMemory[key] = mode;
+  try {
+    if (mode === defaultGroupBy()) localStorage.removeItem(key);
+    else localStorage.setItem(key, mode);
+  } catch { /* storage unavailable: the choice lasts until reload */ }
+}
+
+// With the Type filter set to epics only, the epic cards themselves are
+// shown in plain columns (otherwise they are the swimlane headers).
+function _showingEpicCards() {
+  const tags = (window.activeFilters && window.activeFilters.tags) || [];
+  return tags.length === 1 && tags[0] === 'epic';
+}
+
+// The value a card has for a grouping ('' for none).
+function cardGroupValue(card, mode) {
+  if (mode === 'type') return card.tag || '';
+  if (mode === 'priority') return card.priority || '';
+  if (mode === 'assignee') return card.assignee && card.assignee !== 'unassigned' ? card.assignee : '';
+  if (mode.startsWith('cf:')) return (card.custom_fields || {})[mode.slice(3)] || '';
+  return '';
+}
+
+// Sets a grouping's value on a card; returns the API update, or null when
+// nothing changes.
+function setCardGroupValue(card, mode, value) {
+  if (cardGroupValue(card, mode) === value) return null;
+  if (mode === 'type' && value) { card.tag = value; return { tag: value }; }
+  if (mode === 'priority' && value) { card.priority = value; return { priority: value }; }
+  if (mode === 'assignee') { card.assignee = value || null; return { assignee_id: value || null }; }
+  if (mode.startsWith('cf:')) {
+    const id = mode.slice(3);
+    card.custom_fields = Object.assign({}, card.custom_fields || {});
+    if (value) card.custom_fields[id] = value; else delete card.custom_fields[id];
+    return { custom_fields: { [id]: value || null } };
+  }
+  return null;
+}
+
+// The card values a new card gets when it is added to a group (used for
+// presets such as openCreateModal).
+function groupPreset(mode, value) {
+  if (mode === 'type' && value) return { tag: value };
+  if (mode === 'priority' && value) return { priority: value };
+  if (mode === 'assignee' && value) return { assignee_id: value };
+  if (mode && mode.startsWith('cf:') && value) return { custom_fields: { [mode.slice(3)]: value } };
+  return {};
+}
+
+// Groups for the cards, in the order of the property's values; groups
+// without cards are left out and "none" comes last.
+function _buildGroups(mode, cards) {
+  const byKey = new Map();
+  const put = (key, label, card) => {
+    if (!byKey.has(key)) byKey.set(key, { key, label, cards: [] });
+    byKey.get(key).cards.push(card);
+  };
+  const order = [];
+  if (mode === 'type') {
+    cards.forEach(c => put(c.tag || '', _capitalize(TAG_LABELS[c.tag] || c.tag || 'No type'), c));
+    order.push(...Object.keys(TAG_LABELS).filter(t => t !== 'epic'));
+  } else if (mode === 'priority') {
+    cards.forEach(c => put(c.priority || '', (PRIORITIES.find(p => p.value === c.priority) || {}).label || c.priority || 'No priority', c));
+    order.push(...PRIORITIES.map(p => p.value));
+  } else if (mode === 'assignee') {
+    cards.forEach(c => {
+      const id = cardGroupValue(c, 'assignee');
+      put(id, id ? (getUserById(id).label || id) : 'Unassigned', c);
+    });
+    const users = USERS.map(u => u.value);
+    const rank = id => { const i = users.indexOf(id); return i < 0 ? 1e9 : i; };
+    order.push(...[...byKey.keys()].filter(Boolean).sort((a, b) => rank(a) - rank(b) || byKey.get(a).label.localeCompare(byKey.get(b).label)));
+  } else if (mode.startsWith('cf:')) {
+    const field = groupByCustomFields().find(f => 'cf:' + f.id === mode);
+    const options = field ? field.options : [];
+    cards.forEach(c => {
+      const v = cardGroupValue(c, mode);
+      const opt = options.find(o => o.id === v);
+      put(opt ? v : '', opt ? opt.label : 'No ' + String(field ? field.name : 'value').toLowerCase(), c);
+    });
+    order.push(...options.map(o => o.id));
+  }
+  const groups = order.filter(k => k && byKey.has(k)).map(k => byKey.get(k));
+  byKey.forEach((g, k) => { if (k && !order.includes(k)) groups.push(g); });
+  if (byKey.has('')) groups.push(byKey.get(''));
+  return groups;
+}
+
+function _renderColumnHeaderRow(frag, totals) {
+  const headerRow = document.createElement('div');
+  headerRow.className = 'board-column-headers';
+  COLUMNS.forEach((col, ci) => {
+    const hdr = document.createElement('div');
+    hdr.className = 'column-header';
+    hdr.innerHTML = `
+      <span class="column-label">
+        <span class="column-dot" data-col="${col.id}" style="background:${_colColor(col, ci)}"></span>
+        ${col.label}
+      </span>
+      <span class="column-count">${totals[ci] || 0}</span>
+    `;
+    headerRow.appendChild(hdr);
+  });
+  frag.appendChild(headerRow);
+}
+
+function _renderGroupedBoard(frag, mode) {
+  const cardsByColumn = COLUMNS.map(col => (state[col.id] || []).filter(_isBoardCard));
+  _renderColumnHeaderRow(frag, cardsByColumn.map(cards => cards.length));
+
+  _buildGroups(mode, [].concat(...cardsByColumn)).forEach((group, gi) => {
+    const ids = new Set(group.cards.map(c => c.id));
+    const lane = document.createElement('div');
+    lane.className = 'epic-lane group-lane';
+    lane.dataset.groupKey = group.key;
+    const color = EPIC_LANE_COLORS[gi % EPIC_LANE_COLORS.length];
+    if (color) lane.style.background = color.bg;
+
+    const hdr = document.createElement('div');
+    hdr.className = 'epic-lane-header';
+    const title = document.createElement('span');
+    title.className = 'epic-lane-title';
+    title.textContent = group.label;
+    const count = document.createElement('span');
+    count.className = 'epic-lane-count';
+    count.textContent = group.cards.length + ' card' + (group.cards.length !== 1 ? 's' : '');
+    hdr.append(title, count);
+    lane.appendChild(hdr);
+
+    const cols = document.createElement('div');
+    cols.className = 'epic-lane-columns';
+    COLUMNS.forEach((col, ci) => {
+      const cell = document.createElement('div');
+      cell.className = 'epic-lane-cell';
+      const body = document.createElement('div');
+      body.className = 'column-body';
+      body.dataset.col = col.id;
+      body.dataset.groupBy = mode;
+      body.dataset.groupKey = group.key;
+      const laneCards = cardsByColumn[ci].filter(c => ids.has(c.id));
+      cardsInDisplayOrder(laneCards).forEach((card, idx) => {
+        body.appendChild(createCardEl(card, col.id, idx));
+      });
+      body.addEventListener('dragover', onDragOver);
+      body.addEventListener('dragleave', onDragLeave);
+      body.addEventListener('drop', onDrop);
+      cell.appendChild(body);
+      cols.appendChild(cell);
+    });
+    lane.appendChild(cols);
+    frag.appendChild(lane);
+  });
+}
+
+// True when each column shows all its cards in their stored order, so a
+// card can be put into the drawn column directly instead of drawing again.
+function boardShowsStoredOrder() {
+  const board = document.getElementById('board');
+  if (board && board.classList.contains('board-epic-mode')) return false;
+  return !isCardSortActive() && (!_boardHasEpics() || _showingEpicCards());
+}
+
 function render() {
   EPIC_LANE_COLORS = _getEpicColors();
   const board = document.getElementById('board');
@@ -605,13 +822,21 @@ function render() {
   }
 
   const frag = document.createDocumentFragment();
+  const mode = currentGroupBy();
+  board.dataset.groupBy = mode;
 
-  if (epics.length === 0) {
+  if (_showingEpicCards()) {
     board.classList.remove('board-epic-mode');
     _renderStandardBoard(frag);
-  } else {
+  } else if (mode === 'epic' && epics.length) {
     board.classList.add('board-epic-mode');
     _renderEpicBoard(frag, epics);
+  } else if (mode === 'off') {
+    board.classList.remove('board-epic-mode');
+    _renderStandardBoard(frag, epics.length ? _isBoardCard : null);
+  } else {
+    board.classList.add('board-epic-mode');
+    _renderGroupedBoard(frag, mode);
   }
 
   // Add unfurl classes BEFORE appending to DOM to avoid 1-frame flash.
@@ -643,9 +868,11 @@ function render() {
 
 }
 
-function _renderStandardBoard(frag) {
+// keep: which cards show (epic cards are left out when grouping is off)
+function _renderStandardBoard(frag, keep) {
   COLUMNS.forEach((col, ci) => {
-    const cards = state[col.id] || [];
+    const all = state[col.id] || [];
+    const cards = keep ? all.filter(keep) : all;
     const colEl = document.createElement('div');
     colEl.className = 'column';
     colEl.innerHTML = `
@@ -670,7 +897,7 @@ function _renderStandardBoard(frag) {
     }
 
     cardsInDisplayOrder(cards).forEach(card => {
-      body.appendChild(createCardEl(card, col.id, cards.indexOf(card)));
+      body.appendChild(createCardEl(card, col.id, all.indexOf(card)));
     });
 
     body.addEventListener('dragover', onDragOver);
@@ -686,21 +913,7 @@ function _renderEpicBoard(frag, epics) {
   const layout = _buildEpicLayout(epics);
 
   // Sticky column headers
-  const headerRow = document.createElement('div');
-  headerRow.className = 'board-column-headers';
-  COLUMNS.forEach((col, ci) => {
-    const hdr = document.createElement('div');
-    hdr.className = 'column-header';
-    hdr.innerHTML = `
-      <span class="column-label">
-        <span class="column-dot" data-col="${col.id}" style="background:${_colColor(col, ci)}"></span>
-        ${col.label}
-      </span>
-      <span class="column-count">${layout.columnTotals[ci] || 0}</span>
-    `;
-    headerRow.appendChild(hdr);
-  });
-  frag.appendChild(headerRow);
+  _renderColumnHeaderRow(frag, layout.columnTotals);
 
   // Epic lanes
   layout.lanes.forEach((laneModel) => {
@@ -941,16 +1154,21 @@ function onDrop(e) {
   if (!dragCard) { clearDropTarget(); return; }
 
   const targetCol = dropTargetCol || e.currentTarget.dataset.col;
-  const targetEpicId = e.currentTarget.dataset.epic || null;
   const origEpicId = dragCard.epic_id || null;
+  // Only epic lanes set the epic; other layouts keep the card's epic
+  const laneEpic = e.currentTarget.dataset.epic;
+  const targetEpicId = laneEpic === undefined ? origEpicId : (laneEpic || null);
   const epicChanged = targetEpicId !== origEpicId;
+  // A group lane (Group by) sets its value on the card
+  const groupBy = e.currentTarget.dataset.groupBy;
+  const groupChanged = !!groupBy && cardGroupValue(dragCard, groupBy) !== (e.currentTarget.dataset.groupKey || '');
   const origSourceCol = dragSourceCol;
   const origState = JSON.parse(JSON.stringify(state));
 
   // A sorted column decides the order itself: a card dropped into it goes to
   // the end of the stored order, and a drop within it changes nothing.
   const sorted = isCardSortActive();
-  if (sorted && targetCol === dragSourceCol && !epicChanged) {
+  if (sorted && targetCol === dragSourceCol && !epicChanged && !groupChanged) {
     if (dragEl) dragEl.classList.remove('dragging');
     clearDropTarget();
     dragEl = null; dragCard = null; dragSourceCol = null;
@@ -963,12 +1181,13 @@ function onDrop(e) {
 
   let insertIdx;
   if (dropTargetCard && !sorted) {
-    const targetIdx = parseInt(dropTargetCard.dataset.idx);
-    insertIdx = targetIdx;
-    if (dragSourceCol === targetCol && srcIdx < targetIdx) insertIdx--;
+    // Before the card it was dropped on (looked up by id: in lanes the
+    // drawn index only counts the lane's cards)
+    const at = state[targetCol].findIndex(c => c.id === dropTargetCard.dataset.id);
+    insertIdx = at !== -1 ? at : state[targetCol].length;
     state[targetCol].splice(insertIdx, 0, dragCard);
   } else if (sorted && targetCol === dragSourceCol && srcIdx !== -1) {
-    insertIdx = srcIdx; // only its epic changes
+    insertIdx = srcIdx; // only its epic or group changes
     state[targetCol].splice(insertIdx, 0, dragCard);
   } else {
     state[targetCol] = state[targetCol] || [];
@@ -977,6 +1196,7 @@ function onDrop(e) {
   }
 
   if (epicChanged) dragCard.epic_id = targetEpicId;
+  const groupUpdate = groupChanged ? setCardGroupValue(dragCard, groupBy, e.currentTarget.dataset.groupKey || '') : null;
 
   const droppedId = dragCard.id;
   const movedCard = dragCard;
@@ -984,8 +1204,7 @@ function onDrop(e) {
   clearDropTarget();
   save();
 
-  const isEpicMode = document.getElementById('board').classList.contains('board-epic-mode');
-  if (epicChanged || isEpicMode || sorted) {
+  if (epicChanged || groupUpdate || !boardShowsStoredOrder()) {
     dragEl = null; dragCard = null; dragSourceCol = null;
     window.render();
     // Wiggle animation on the dropped card
@@ -1065,6 +1284,15 @@ function onDrop(e) {
     window.API.moveCard(droppedId, movePayload).then(updated => {
       movedCard.version = updated.version;
       cardIndex[droppedId] = updated;
+      if (groupUpdate) {
+        window.API.updateCard(droppedId, Object.assign({ version: updated.version }, groupUpdate)).then(saved => {
+          movedCard.version = saved.version;
+          cardIndex[droppedId] = saved;
+        }).catch(err => {
+          if (err.status === 409) loadBoardCards(currentBoardId);
+          else window.Toast.error('Failed to save card');
+        });
+      }
       if (window.Notifier && typeof window.Notifier.handleCardMoved === 'function') {
         window.Notifier.handleCardMoved(updated);
       }
@@ -3351,6 +3579,15 @@ window.getDefaultBoardId = getDefaultBoardId;
 window.loadFromLocalStorage = loadFromLocalStorage;
 window.save = save;
 window.render = render;
+window.groupByModes = groupByModes;
+window.groupByLabel = groupByLabel;
+window.groupByCustomFields = groupByCustomFields;
+window.defaultGroupBy = defaultGroupBy;
+window.currentGroupBy = currentGroupBy;
+window.setGroupBy = setGroupBy;
+window.cardGroupValue = cardGroupValue;
+window.groupPreset = groupPreset;
+window.boardShowsStoredOrder = boardShowsStoredOrder;
 window.CARD_SORT_OPTIONS = CARD_SORT_OPTIONS;
 window.getCardSort = getCardSort;
 window.setCardSort = setCardSort;

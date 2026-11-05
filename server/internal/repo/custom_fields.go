@@ -38,6 +38,8 @@ type CustomFieldDefinition struct {
 	Type     string              `json:"type"`
 	Required bool                `json:"required,omitempty"`
 	Options  []CustomFieldOption `json:"options,omitempty"`
+	// GroupBy offers a choice field in the web UI's Group by menu.
+	GroupBy bool `json:"group_by,omitempty"`
 }
 
 type CustomFieldOption struct {
@@ -197,6 +199,7 @@ func ValidateCustomFieldDefinitions(defs []CustomFieldDefinition) ([]CustomField
 		switch def.Type {
 		case CustomFieldTypeText:
 			def.Options = nil
+			def.GroupBy = false // only choice fields group cards
 		case CustomFieldTypeSelect:
 			options, optionFields := validateCustomFieldOptions(prefix+".options", def.Options)
 			for k, v := range optionFields {

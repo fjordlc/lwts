@@ -1639,3 +1639,14 @@ body.light-theme .board-theme-preview-card {
     justify-self: start;
   }
 }
+
+/* Custom field: "Add to Group by" switch under a choice field's options */
+.settings-custom-field-group-by {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}

@@ -173,4 +173,42 @@ describe('settings custom field choices', () => {
     assert.deepEqual(toasts, [{ type: 'error', msg: 'Choice fields need at least one choice' }]);
     assert.equal(dom.window.document.querySelectorAll('.settings-custom-field-option-row').length, 1);
   });
+
+  it('offers "Add to Group by" on choice fields and keeps the flag on later saves', async () => {
+    const { dom, mod, updates } = loadSettingsModule();
+    const board = {
+      id: 'board-1',
+      settings: JSON.stringify({
+        custom_fields: [
+          { id: 'customer', name: 'Customer', type: 'text' },
+          { id: 'severity', name: 'Severity', type: 'select', options: [{ id: 'sev1', label: 'SEV 1', color: '#579DFF' }] },
+        ],
+      }),
+    };
+    renderBoard(dom, mod, board);
+    mod._bindCustomFieldInputs(dom.window.document);
+    const toggle = dom.window.document.querySelector('.board-custom-field-group-by[data-field-id="severity"]');
+    assert.ok(toggle, 'choice field has the switch');
+    assert.equal(toggle.checked, false);
+
+    toggle.checked = true;
+    toggle.dispatchEvent(new dom.window.Event('change'));
+    await new Promise((r) => setTimeout(r, 0));
+    let saved = JSON.parse(updates[updates.length - 1].body.settings);
+    assert.equal(saved.custom_fields[1].group_by, true);
+    assert.equal('group_by' in saved.custom_fields[0], false);
+
+    dom.window.document.querySelector('.settings-custom-field-option-new').value = 'SEV 2';
+    await mod._addCustomFieldOption('board-1', 'severity');
+    saved = JSON.parse(updates[updates.length - 1].body.settings);
+    assert.equal(saved.custom_fields[1].group_by, true);
+    assert.equal(dom.window.document.querySelector('.board-custom-field-group-by[data-field-id="severity"]').checked, true);
+
+    const off = dom.window.document.querySelector('.board-custom-field-group-by[data-field-id="severity"]');
+    off.checked = false;
+    off.dispatchEvent(new dom.window.Event('change'));
+    await new Promise((r) => setTimeout(r, 0));
+    saved = JSON.parse(updates[updates.length - 1].body.settings);
+    assert.equal('group_by' in saved.custom_fields[1], false);
+  });
 });

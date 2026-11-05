@@ -451,6 +451,12 @@ function initFilterBar() {
           </button>
           <div class="filter-menu hidden" id="filter-sort-menu"></div>
         </div>
+        <div class="filter-dropdown" id="filter-group-wrap">
+          <button class="filter-btn filter-btn-icon" onclick="toggleFilterDropdown('group')" aria-label="Group by" title="Group by">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></svg>
+          </button>
+          <div class="filter-menu hidden" id="filter-group-menu"></div>
+        </div>
         <div class="filter-dropdown" id="filter-density-wrap">
           <button class="filter-btn" onclick="toggleFilterDropdown('density')">
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -696,6 +702,7 @@ function toggleFilterDropdown(type) {
   if (type === 'column') buildColumnFilterMenu();
   if (type === 'epic') buildEpicFilterMenu();
   if (type === 'sort') buildCardSortMenu();
+  if (type === 'group') buildGroupByMenu();
   // Menus open next to their button again after a phone has lifted them out.
   const wrap = document.getElementById(`filter-${type}-wrap`);
   if (wrap && menu.parentNode !== wrap) {
@@ -761,6 +768,48 @@ function applyCardSortButton() {
   btn.title = sort.key === 'manual' || !option
     ? 'Sort cards'
     : 'Sorted by ' + option.label.toLowerCase() + (sort.dir === 'asc' ? ' \u2191' : ' \u2193');
+}
+
+// ── Group by ──
+// The Group by button chooses the board's swimlanes (kanban.js draws them).
+
+function buildGroupByMenu() {
+  const menu = document.getElementById('filter-group-menu');
+  if (!menu || typeof window.groupByModes !== 'function') return;
+  const current = window.currentGroupBy();
+  menu.innerHTML = '';
+  const title = document.createElement('div');
+  title.className = 'filter-menu-title';
+  title.textContent = 'Group by';
+  menu.appendChild(title);
+  window.groupByModes().forEach(mode => {
+    const item = document.createElement('div');
+    item.className = 'filter-checkbox-item filter-sort-item' + (mode === current ? ' active' : '');
+    item.dataset.group = mode;
+    const name = document.createElement('span');
+    name.textContent = window.groupByLabel(mode);
+    const check = document.createElement('span');
+    check.className = 'filter-sort-dir';
+    check.textContent = mode === current ? '\u2713' : '';
+    item.append(name, check);
+    item.addEventListener('click', () => chooseGroupBy(mode));
+    menu.appendChild(item);
+  });
+}
+
+function chooseGroupBy(mode) {
+  window.setGroupBy(mode);
+  const menu = document.getElementById('filter-group-menu');
+  if (menu) menu.classList.add('hidden');
+  window.render();
+}
+
+function applyGroupByButton() {
+  const btn = document.querySelector('#filter-group-wrap .filter-btn');
+  if (!btn || typeof window.currentGroupBy !== 'function') return;
+  const mode = window.currentGroupBy();
+  btn.classList.toggle('filter-btn-active', mode !== window.defaultGroupBy());
+  btn.title = 'Group by: ' + window.groupByLabel(mode);
 }
 
 // ── Status filter ──
@@ -980,7 +1029,7 @@ function buildEpicFilterMenu() {
   }
 }
 
-// The Epic filter only appears on boards with epics (the swimlane layout).
+// The Epic filter only appears on boards with epics, grouped by epic.
 function applyEpicLaneVisibility() {
   const epics = boardEpics();
   const ids = new Set(['', ...epics.map(e => e.id)]);
@@ -989,8 +1038,10 @@ function applyEpicLaneVisibility() {
     const id = lane.classList.contains('epic-lane-ungrouped') ? '' : lane.dataset.epicId;
     if (id !== undefined) lane.classList.toggle('lane-hidden', hidden.has(id));
   });
+  // It filters the epic swimlanes, so it shows while the board is grouped by epic
+  const byEpic = typeof window.currentGroupBy !== 'function' || window.currentGroupBy() === 'epic';
   const wrap = document.getElementById('filter-epic-wrap');
-  if (wrap) wrap.style.display = epics.length ? '' : 'none';
+  if (wrap) wrap.style.display = epics.length && byEpic ? '' : 'none';
   const badge = document.getElementById('filter-epic-badge');
   if (badge) {
     badge.textContent = hidden.size ? ids.size - hidden.size : '';
@@ -1000,8 +1051,13 @@ function applyEpicLaneVisibility() {
   if (btn) btn.classList.toggle('filter-btn-active', hidden.size > 0);
 }
 
+function _onlyEpicTypeFilter() {
+  return activeFilters.tags.length === 1 && activeFilters.tags[0] === 'epic';
+}
+
 function onFilterCheckbox(type, checkbox) {
   const key = type === 'assignee' ? 'assignees' : type === 'priority' ? 'priorities' : 'tags';
+  const onlyEpic = _onlyEpicTypeFilter();
   if (checkbox.checked) {
     if (!activeFilters[key].includes(checkbox.value)) {
       activeFilters[key].push(checkbox.value);
@@ -1009,7 +1065,9 @@ function onFilterCheckbox(type, checkbox) {
   } else {
     activeFilters[key] = activeFilters[key].filter(v => v !== checkbox.value);
   }
-  window.applyFilters();
+  // Filtering on epics alone shows the epic cards themselves: the board is drawn again
+  if (onlyEpic !== _onlyEpicTypeFilter()) window.render();
+  else window.applyFilters();
 }
 
 function onFilterSearch(value) {
@@ -1148,11 +1206,16 @@ function updateFilterBadge(type, count) {
 }
 
 function clearAllFilters() {
-  activeFilters = { assignees: [], priorities: [], tags: [], search: '' };
+  const onlyEpic = _onlyEpicTypeFilter();
+  // Cleared in place: other modules hold window.activeFilters
+  Object.assign(activeFilters, { assignees: [], priorities: [], tags: [], search: '' });
   const filterSearchEl = document.getElementById('filter-search');
   if (filterSearchEl) filterSearchEl.value = '';
-  document.querySelectorAll('.filter-menu input[type="checkbox"]').forEach(cb => { cb.checked = false; });
-  window.applyFilters();
+  // The card filters only; the status and epic menus are view choices
+  document.querySelectorAll('#filter-assignee-menu, #filter-priority-menu, #filter-tag-menu')
+    .forEach(menu => menu.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; }));
+  if (onlyEpic) window.render();
+  else window.applyFilters();
 }
 
 
@@ -1491,9 +1554,10 @@ function _refreshEmptyState(body) {
 function _surgicalCanApply() {
   // Standard kanban view, not list, not epic-lane mode (which uses a
   // different DOM tree the surgical helpers don't understand), and cards
-  // shown in their stored order (a sorted column must be drawn again).
-  const sorted = typeof window.isCardSortActive === 'function' && window.isCardSortActive();
-  return !_isListView() && !_isEpicMode() && !sorted && typeof window.createCardEl === 'function';
+  // shown in their stored order (a sorted column, or one that leaves the
+  // epic cards out, must be drawn again).
+  const stored = typeof window.boardShowsStoredOrder !== 'function' || window.boardShowsStoredOrder();
+  return !_isListView() && !_isEpicMode() && stored && typeof window.createCardEl === 'function';
 }
 
 function _surgicalAddCard(card, colId, position) {
@@ -1812,6 +1876,7 @@ if (_origRender) {
     applyColumnVisibility();
     applyEpicLaneVisibility();
     applyCardSortButton();
+    applyGroupByButton();
     injectDueDateChips();
     // Re-apply filters if any are active
     if (activeFilters.assignees.length || activeFilters.priorities.length ||
@@ -1863,6 +1928,8 @@ window.getCurrentDensity = getCurrentDensity;
 window.selectDensity = selectDensity;
 window.applyDensity = applyDensity;
 window.buildCardSortMenu = buildCardSortMenu;
+window.buildGroupByMenu = buildGroupByMenu;
+window.chooseGroupBy = chooseGroupBy;
 window.chooseCardSort = chooseCardSort;
 window.initDensityToggleLabel = initDensityToggleLabel;
 window.buildFilterCheckboxes = buildFilterCheckboxes;

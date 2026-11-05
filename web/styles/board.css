@@ -1336,7 +1336,14 @@ body:is([data-board-theme="summer-duotone"], [data-board-theme="round-geometric"
   justify-content: center;
 }
 .filter-btn-icon.filter-btn-active { background: var(--surface-hover); }
-#filter-sort-menu { min-width: 190px; }
+#filter-sort-menu, #filter-group-menu { min-width: 190px; }
+.filter-menu-title {
+  padding: 6px 12px 4px;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dimmed);
+}
 .filter-sort-item {
   justify-content: space-between;
   cursor: pointer;

@@ -1952,6 +1952,10 @@ function _bindCustomFieldInputs(root) {
     });
   });
 
+  scope.querySelectorAll('.board-custom-field-group-by').forEach(el => {
+    el.addEventListener('change', () => _saveBoardCustomFields(el.dataset.boardId, { silent: true }));
+  });
+
   scope.querySelectorAll('.settings-custom-field-option-add-btn').forEach(btn => {
     btn.addEventListener('click', () => _addCustomFieldOption(btn.dataset.boardId, btn.dataset.fieldId));
   });
@@ -2037,6 +2041,13 @@ function _renderCustomFieldOptionsEditor(boardId, field, type) {
       <input class="settings-input settings-custom-field-option-new" data-board-id="${boardId}" data-field-id="${_escHtml(field.id)}" placeholder="New choice" />
       <button type="button" class="btn settings-custom-field-option-add-btn" data-board-id="${boardId}" data-field-id="${_escHtml(field.id)}">+ Add choice</button>
     </div>
+    <div class="settings-custom-field-group-by">
+      <span>Add to Group by</span>
+      <label class="settings-toggle" title="Offer this field in the board's Group by menu">
+        <input type="checkbox" class="board-custom-field-group-by" data-board-id="${boardId}" data-field-id="${_escHtml(field.id)}" ${field.group_by ? 'checked' : ''}>
+        <span class="toggle-track"></span>
+      </label>
+    </div>
   </div>`;
   return html;
 }
@@ -2119,6 +2130,9 @@ function _collectCustomFieldsFromDOM(boardId) {
       if (field.options.length === 0) {
         field.options = [{ id: 'option', label: 'Option', color: CUSTOM_FIELD_OPTION_COLORS[idx % CUSTOM_FIELD_OPTION_COLORS.length] }];
       }
+      // Offered in the board's Group by menu
+      const groupByEl = row.querySelector('.board-custom-field-group-by');
+      if (groupByEl ? groupByEl.checked : prev.group_by) field.group_by = true;
     }
     fields.push(field);
   });
