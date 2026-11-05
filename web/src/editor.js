@@ -67,8 +67,16 @@ class FnEditor {
     this.body = body;
     this.el.appendChild(body);
 
-    // Auto-resize
+    // Auto-resize: on every edit, and when the width changes (a narrower box wraps more lines)
     body.addEventListener('input', () => this._autoResize());
+    if (typeof ResizeObserver === 'function') {
+      let lastWidth = 0;
+      this._resizeObserver = new ResizeObserver(entries => {
+        const width = Math.round(entries[0].contentRect.width);
+        if (width && width !== lastWidth) { lastWidth = width; this._autoResize(); }
+      });
+      this._resizeObserver.observe(body);
+    }
   }
 
   _wrapSelection(before, after) {
@@ -126,6 +134,8 @@ class FnEditor {
   _autoResize() {
     const ta = this.body;
     ta.style.height = 'auto';
+    // A hidden editor measures 0: leave it at its natural height until it is shown
+    if (!ta.scrollHeight) { ta.style.height = ''; return; }
     ta.style.height = ta.scrollHeight + 'px';
   }
 
@@ -143,7 +153,7 @@ class FnEditor {
   setHTML(html) { this.body.value = html || ''; }
 
   focus() { this.body.focus(); }
-  clear() { this.body.value = ''; this._markdown = ''; }
+  clear() { this.body.value = ''; this._markdown = ''; this._autoResize(); }
 }
 
 window.FnEditor = FnEditor;

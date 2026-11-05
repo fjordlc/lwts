@@ -71,8 +71,10 @@
   margin: 0 4px;
 }
 
+/* The textarea grows with its text (FnEditor._autoResize sets its height), so it must not
+   take a zero flex basis from the column layout, and never needs its own scrollbar. */
 .lwts-editor-body {
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 120px;
   padding: 12px 14px;
   color: var(--text-primary);
@@ -80,7 +82,7 @@
   font-size: 0.85rem;
   line-height: 1.6;
   outline: none;
-  overflow-y: auto;
+  overflow-y: hidden;
   border: none;
   background: transparent;
   resize: none;
