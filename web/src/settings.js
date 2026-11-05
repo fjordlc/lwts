@@ -1590,17 +1590,33 @@ async function openSettings(_fromHash) {
 
     renderSettingsNav();
     showSettingsSection(window.activeSettingsSection);
-    initSettingsDropdowns();
-    initSettingsBindings();
-    bindSemanticSearchControls();
-    loadSettings('general');
-    loadSettings('appearance');
-    loadBoardsSettings();
-    loadTransitionsSettings();
-    loadTeamMembers();
-    loadAPIKeys();
-    loadDiscordConfig();
+    _prepareSettingsContent();
   }, 100);
+}
+
+function _prepareSettingsContent() {
+  initSettingsDropdowns();
+  initSettingsBindings();
+  bindSemanticSearchControls();
+  return Promise.all([
+    loadSettings('general'),
+    loadSettings('appearance'),
+    loadBoardsSettings(),
+    loadTransitionsSettings(),
+    loadTeamMembers(),
+    loadAPIKeys(),
+    loadDiscordConfig(),
+  ]);
+}
+
+// Builds the settings sections and loads their data without showing the
+// settings page, for views that show one section elsewhere (the phone sheet).
+// The navigation is rendered right away; the promise settles once the data is in.
+async function prepareSettings() {
+  renderSettingsNav();
+  await _ensureLambdaDemoMode();
+  updateDangerZoneLabels();
+  await _prepareSettingsContent();
 }
 
 function _toggleSettingsPicker(e) {
@@ -3077,6 +3093,7 @@ window.openProfile = openProfile;
 window.closeCreateUserModal = closeCreateUserModal;
 window.submitUserModal = submitUserModal;
 window.deleteUserFromModal = deleteUserFromModal;
+window.prepareSettings = prepareSettings;
 window.SETTINGS_SECTIONS = SETTINGS_SECTIONS;
 window.SETTINGS_GROUPS = SETTINGS_GROUPS;
 window.activeSettingsSection = activeSettingsSection;

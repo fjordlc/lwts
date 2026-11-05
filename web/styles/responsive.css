@@ -991,3 +991,70 @@
   .mobile-sheet-body > .view-switcher .view-switcher-btn { flex: 1; height: 100%; }
   .mobile-sheet-boards .header-board-option { min-height: 44px; padding: 8px 10px; box-sizing: border-box; border-radius: 10px; font-size: 0.95rem; }
 }
+
+/* Settings in the phone sheet (mobilenav.js) */
+@media (max-width: 768px) {
+  .mobile-sheet-back {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    min-height: 44px;
+    padding: 4px 6px;
+    margin-bottom: 4px;
+    background: none;
+    border: 0;
+    color: var(--accent, #3b82f6);
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .mobile-sheet-title { padding: 0 10px 8px; font-size: 1.1rem; font-weight: 600; color: var(--text-primary); }
+  .mobile-sheet-group-title {
+    padding: 10px 10px 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-dimmed);
+  }
+  .mobile-sheet-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    background: none;
+    border: 0;
+    border-radius: 10px;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.95rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .mobile-sheet-link:active { background: var(--surface-hover); }
+  .mobile-sheet-link > svg:first-child { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; color: var(--text-secondary); }
+  .mobile-sheet-link > span { flex: 1; min-width: 0; }
+  .mobile-sheet-link > svg:last-child { flex: none; color: var(--text-dimmed); }
+  .mobile-sheet-board-gear {
+    flex: none;
+    display: flex;
+    margin: -8px -6px -8px 4px;
+    padding: 8px;
+    background: none;
+    border: 0;
+    color: var(--text-dimmed);
+    cursor: pointer;
+  }
+  .mobile-sheet-body > .settings-section { display: block; max-width: none; padding: 0 4px 12px; }
+  /* One board's settings: only its card, opened, without its header */
+  .mobile-sheet-one-board > :not(:has(.mobile-sheet-target)) { display: none; }
+  .mobile-sheet-one-board #settings-boards-list > :not(.mobile-sheet-target) { display: none; }
+  .mobile-sheet-one-board .mobile-sheet-target > .settings-board-header { display: none; }
+  .mobile-sheet-one-board .mobile-sheet-target,
+  .mobile-sheet-one-board .mobile-sheet-target > .settings-board-config { border: 0; background: none; box-shadow: none; padding: 0; margin: 0; border-radius: 0; }
+}

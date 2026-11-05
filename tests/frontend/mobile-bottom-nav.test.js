@@ -246,10 +246,8 @@ describe('Boards and Account sheets', () => {
     const menu = $(w, '#header-user-dropdown');
     assert.equal(menu.parentElement, sheetBody(w));
     assert.ok(!menu.classList.contains('hidden'));
-    const settings = Array.from(menu.querySelectorAll('.header-user-item')).find((i) => /Settings/.test(i.textContent));
-    w.openSettings(); // what the item's inline onclick does (jsdom does not run it)
-    settings.click();
-    assert.equal(w.calls.filter((c) => c.op === 'settings').length, 1);
+    const profile = Array.from(menu.querySelectorAll('.header-user-item')).find((i) => /Profile/.test(i.textContent));
+    profile.click();
     assert.equal($(w, '#mobile-sheet').hidden, true);
     assert.equal(menu.parentElement, $(w, '#header-user-menu'));
     assert.ok(menu.classList.contains('hidden'));
@@ -283,5 +281,68 @@ describe('phone navigation stylesheet', () => {
 
   it('lays the lent menus flat in the sheet, open or not', () => {
     assert.match(block, /\.mobile-sheet-body \.filter-menu,\s*\.mobile-sheet-body \.filter-menu\.hidden,\s*\.mobile-sheet-body \.header-user-dropdown \{[^}]*display: block;[^}]*position: static/);
+  });
+});
+
+describe('settings in the phone sheet', () => {
+  function withSettings(w) {
+    w.SETTINGS_SECTIONS = [
+      { id: 'general', label: 'General', group: 'workspace', icon: '<svg></svg>' },
+      { id: 'boards', label: 'Boards', group: 'workspace', icon: '<svg></svg>' },
+      { id: 'team', label: 'Team', group: 'people', icon: '<svg></svg>' },
+    ];
+    w.SETTINGS_GROUPS = { workspace: 'Workspace', people: 'People' };
+    w.prepareSettings = () => { w.calls.push({ op: 'prepare' }); return Promise.resolve(); };
+    w.showSettingsSection = (id, fromHash) => w.calls.push({ op: 'section', id, fromHash });
+    w.toggleBoardConfig = (id) => { w.document.getElementById(id).classList.remove('hidden'); };
+    $(w, '#settings-boards-list').innerHTML = ['b1', 'b2'].map((id) => `<div class="settings-board-card"><div class="settings-board-header">${id}</div><div class="settings-board-config hidden" id="board-config-${id}"><div class="settings-column-row">x</div></div></div>`).join('');
+    return w;
+  }
+  const lit = (w) => Array.from(w.document.querySelectorAll('#mobile-nav .mobile-nav-btn.active')).map((b) => b.dataset.sheet);
+
+  it('Account > Settings lists the sections in the sheet instead of opening the settings page', async () => {
+    const w = withSettings(await load());
+    $(w, '#mobile-nav .mobile-nav-btn[data-sheet="account"]').click();
+    const item = Array.from(sheetBody(w).querySelectorAll('.header-user-item')).find((i) => /openSettings/.test(i.getAttribute('onclick')));
+    item.dispatchEvent(new w.MouseEvent('click', { bubbles: true }));
+    assert.equal(sheetBody(w).dataset.sheet, 'settings');
+    assert.equal(w.calls.filter((c) => c.op === 'settings').length, 0, 'the settings page did not open');
+    assert.deepEqual(Array.from(sheetBody(w).querySelectorAll('.mobile-sheet-link')).map((r) => r.textContent.trim()), ['General', 'Boards', 'Team']);
+    assert.deepEqual(Array.from(sheetBody(w).querySelectorAll('.mobile-sheet-group-title')).map((g) => g.textContent), ['Workspace', 'People']);
+    assert.deepEqual(lit(w), ['account']);
+  });
+
+  it('opens a section in the sheet, goes back, and gives the section back when the sheet closes', async () => {
+    const w = withSettings(await load());
+    w.openMobileSheet('settings', {});
+    Array.from(sheetBody(w).querySelectorAll('.mobile-sheet-link')).find((r) => r.textContent.trim() === 'Team').click();
+    await flush(w);
+    assert.ok(sheetBody(w).contains($(w, '#settings-team')), 'the Team section is in the sheet');
+    assert.ok(w.calls.some((c) => c.op === 'section' && c.id === 'team' && c.fromHash === true), 'the URL is left alone');
+    $(w, '#mobile-sheet .mobile-sheet-back').click();
+    assert.ok(!sheetBody(w).contains($(w, '#settings-team')));
+    assert.ok($(w, '.settings-content').contains($(w, '#settings-team')), 'back in the settings page');
+    w.closeMobileSheet();
+    assert.equal($(w, '#mobile-sheet').hidden, true);
+  });
+
+  it('a gear in the Boards sheet opens only that board\'s settings, opened, under Boards', async () => {
+    const w = withSettings(await load());
+    $(w, '#mobile-nav .mobile-nav-btn[data-sheet="boards"]').click();
+    const gears = sheetBody(w).querySelectorAll('.mobile-sheet-board-gear');
+    assert.equal(gears.length, 2, 'one gear per board');
+    gears[1].click();
+    await flush(w);
+    const sec = $(w, '#settings-boards');
+    assert.ok(sheetBody(w).contains(sec));
+    assert.ok(sec.classList.contains('mobile-sheet-one-board'));
+    assert.ok($(w, '#board-config-b2').closest('.settings-board-card').classList.contains('mobile-sheet-target'));
+    assert.ok(!$(w, '#board-config-b2').classList.contains('hidden'), 'opened');
+    assert.ok(!$(w, '#board-config-b1').closest('.settings-board-card').classList.contains('mobile-sheet-target'));
+    assert.equal($(w, '#mobile-sheet .mobile-sheet-title').textContent, 'Beta');
+    assert.deepEqual(lit(w), ['boards']);
+    w.closeMobileSheet();
+    assert.equal(w.document.querySelectorAll('.mobile-sheet-one-board, .mobile-sheet-target').length, 0, 'marks removed');
+    assert.ok($(w, '.settings-content').contains(sec));
   });
 });
