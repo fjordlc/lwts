@@ -226,6 +226,15 @@ function openEditBotModal(bot) {
   setTimeout(() => document.getElementById('create-user-name').focus(), 100);
 }
 
+// After an avatar change: reload the board's user list, then redraw the header avatar and the cards.
+async function _refreshUserAvatars() {
+  try {
+    if (typeof window.loadUsers === 'function') await window.loadUsers();
+    if (typeof window.initUserMenu === 'function') window.initUserMenu();
+    if (typeof window.render === 'function') window.render();
+  } catch (e) { /* the next page load shows it */ }
+}
+
 // Avatar menu > Profile: edit your own user over whatever page is showing.
 async function openProfile() {
   const me = window.Auth.getUser && window.Auth.getUser();
@@ -265,6 +274,7 @@ async function submitUserModal() {
       closeCreateUserModal();
       window.Toast.success('User updated');
       loadTeamMembers();
+      if (avatarUrl !== undefined) await _refreshUserAvatars();
     } catch (e) {
       window.Toast.error(e.message || 'Failed to update user');
     }
@@ -2863,8 +2873,7 @@ async function saveAvatar(userId, dataUrl) {
     await window.API.updateUserAvatar(userId, dataUrl);
     window.Toast.success('Avatar updated');
     loadTeamMembers();
-    // Refresh user list in kanban if available
-    if (typeof window.loadUsers === 'function') window.loadUsers();
+    await _refreshUserAvatars();
   } catch (e) {
     window.Toast.error('Failed to update avatar: ' + e.message);
   }

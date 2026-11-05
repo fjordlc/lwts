@@ -93,3 +93,28 @@ describe('profile menu item', () => {
     assert.equal(w.document.getElementById('create-user-password').disabled, false);
   });
 });
+
+describe('avatar refresh', () => {
+  it('redraws the header avatar and the board after saving an avatar in the user modal', async () => {
+    const { w } = await load();
+    const order = [];
+    w.loadUsers = async () => { await tick(); order.push('loadUsers'); };
+    w.initUserMenu = () => order.push('initUserMenu');
+    w.render = () => order.push('render');
+    await w.openProfile();
+    w.document.getElementById('create-user-avatar').value = 'data:image/png;base64,AAAA';
+    await w.submitUserModal();
+    assert.deepEqual(order, ['loadUsers', 'initUserMenu', 'render'], 'the menu is redrawn only once the users are reloaded');
+  });
+
+  it('does the same after picking an avatar from the team list', async () => {
+    const { w } = await load();
+    const order = [];
+    w.loadUsers = async () => { await tick(); order.push('loadUsers'); };
+    w.initUserMenu = () => order.push('initUserMenu');
+    w.render = () => order.push('render');
+    await w.selectDefaultAvatar('u1', 0);
+    await tick(); await tick();
+    assert.deepEqual(order, ['loadUsers', 'initUserMenu', 'render']);
+  });
+});
