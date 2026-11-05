@@ -26,6 +26,7 @@
 > This fork adds bug fixes and features, which are also released under the [MIT](LICENSE) license; changes that fit the original
 > project are offered upstream as pull requests.
 > The screenshots show the [demo board](docs/demo/README.md), an affectionate nod to a well-known dinosaur film.
+> This fork is developed with the help of [Claude Code](https://claude.com/claude-code), Anthropic's AI coding tool. Every change is tested, and reviewed before it is published.
 
 ---
 
