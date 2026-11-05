@@ -1136,10 +1136,11 @@ async function loadTeamMembers() {
         <div class="settings-user-avatar-wrap">
           <div class="settings-user-avatar" style="background:${u.avatar_url ? 'transparent' : color + '30'};color:${color};border-color:${color}40">${avatarInner}</div>
         </div>
-        <div class="settings-user-info"><div class="settings-user-name">${u.name}${isMe ? ' (you)' : ''}</div><div class="settings-user-role">${u.email}</div></div>
+        <div class="settings-user-info"><div class="settings-user-name">${u.name}${isMe ? ' (you)' : ''}${_rolePill(u.role, roleLabel)}</div><div class="settings-user-role">${u.email}</div></div>
         <div class="settings-user-actions">${roleBadge}</div>`;
       list.appendChild(div);
     });
+    if (_isAdmin()) list.appendChild(_teamAddRow('Add member', 'openCreateUserModal'));
 
     // Bots subsection
     _renderBotsSection(bots, list);
@@ -1177,14 +1178,32 @@ function _renderBotsSection(bots, container) {
           </div>
         </div>
         <div class="settings-user-info">
-          <div class="settings-user-name">${_escHtml(bot.name)}<span class="settings-user-bot-badge">BOT</span></div>
+          <div class="settings-user-name">${_escHtml(bot.name)}<span class="settings-user-bot-badge">BOT</span>${_rolePill(bot.role, roleLabel)}</div>
           <div class="settings-user-bot-note">Set an API key in API Keys settings</div>
         </div>
         <div class="settings-user-actions">${roleBadge}</div>`;
       container.appendChild(div);
     });
   }
+  if (_isAdmin()) container.appendChild(_teamAddRow('Create bot', 'openCreateBotModal'));
+}
 
+// Phones show the role as a small pill beside the name (the badge on the right is hidden there).
+function _rolePill(role, label) {
+  return '<span class="settings-user-role-badge settings-user-role-pill ' + _escAttr(role) + '">' + _escAttr(label) + '</span>';
+}
+
+// Phones replace the section's "+ Add member" and the Bots "+ Create bot" buttons with a row
+// under the last member or bot; on wider screens the row is hidden and the buttons stay.
+function _teamAddRow(label, action) {
+  const row = document.createElement('button');
+  row.type = 'button';
+  row.className = 'settings-add-row';
+  row.dataset.action = action;
+  row.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span></span>';
+  row.lastChild.textContent = label;
+  row.addEventListener('click', () => { if (typeof window[action] === 'function') window[action](); });
+  return row;
 }
 
 async function updateUserRole(userId, role) {
@@ -1891,13 +1910,13 @@ async function loadBoardsSettings() {
               <div class="settings-row-title">${title}</div>
               <div class="settings-row-desc">${desc}</div>
             </div>
-            <div class="settings-row-control" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+            <div class="settings-row-control board-trigger-control">
               <label class="settings-toggle" title="Browser notification">
                 <input type="checkbox" class="board-trigger-notify" data-board-id="${board.id}" data-trigger="${key}" ${t.notify ? 'checked' : ''}>
                 <span class="toggle-track"></span>
               </label>
-              <input class="settings-input board-trigger-webhook" data-board-id="${board.id}" data-trigger="${key}" value="${_escHtml(t.webhook || '')}" placeholder="Webhook URL (optional)" style="min-width:220px" />
-              <button class="btn board-trigger-test" data-board-id="${board.id}" data-trigger="${key}" style="font-size:0.78rem;flex-shrink:0" onclick="testBoardTrigger(this)">Test</button>
+              <input class="settings-input board-trigger-webhook" data-board-id="${board.id}" data-trigger="${key}" value="${_escHtml(t.webhook || '')}" placeholder="Webhook URL (optional)" />
+              <button class="btn board-trigger-test" data-board-id="${board.id}" data-trigger="${key}" onclick="testBoardTrigger(this)">Test</button>
             </div>
           </div>`;
       };

@@ -1674,3 +1674,18 @@ body.light-theme .board-theme-preview-card {
   font-size: 0.82rem;
   color: var(--text-secondary);
 }
+
+/* Board triggers: notification switch, webhook URL and Test button */
+.settings-row-control.board-trigger-control {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.settings-input.board-trigger-webhook { min-width: 220px; }
+.btn.board-trigger-test { font-size: 0.78rem; flex-shrink: 0; }
+
+/* Team: the role pill beside the name and the "add" rows are for phones (see responsive.css) */
+.settings-user-role-pill,
+.settings-add-row { display: none; }

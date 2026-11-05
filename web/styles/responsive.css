@@ -703,3 +703,124 @@
   .list-epic-header .list-epic-title { flex: 1 1 auto; min-width: 0; max-width: none; }
   .list-epic-header .list-epic-count { float: none; margin-left: auto; white-space: nowrap; }
 }
+
+/* ── Settings on phones: icon rail beside a scrolling page ── */
+@media (max-width: 768px) {
+  .settings-page {
+    flex-direction: row;
+    height: calc(100vh - 48px);
+    height: calc(100dvh - 48px);
+  }
+  .settings-nav {
+    display: flex;
+    flex-direction: column;
+    width: 52px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    border-right: 1px solid var(--border-faint);
+    border-bottom: none;
+    padding: 8px 0;
+    gap: 0;
+  }
+  .settings-nav-item {
+    justify-content: center;
+    padding: 14px 0;
+    gap: 0;
+    border-left: 0;
+  }
+  .settings-nav-item.active { box-shadow: inset 2px 0 0 var(--text-primary); }
+  .settings-nav-item span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .settings-nav-item svg { width: 20px; height: 20px; }
+  .settings-nav-section {
+    font-size: 0;
+    padding: 0;
+    margin: 8px 12px;
+    border-top: 1px solid var(--border-faint);
+  }
+  .settings-nav-section:first-child { display: none; }
+  .settings-content {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    padding: 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .settings-group { margin-bottom: 20px; }
+  .settings-board-config { padding: 12px; }
+
+  /* a control goes under its label, full width; a switch stays beside it */
+  .settings-row:not(:has(> .settings-row-control > .settings-toggle:only-child)) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .settings-row:not(:has(> .settings-row-control > .settings-toggle:only-child)) > .settings-row-control {
+    margin-left: 0;
+    flex-shrink: 1;
+    width: 100%;
+  }
+  .settings-row:not(:has(> .settings-row-control > .settings-toggle:only-child)) > .settings-row-control > :is(.settings-input, select, .fn-dropdown, .settings-range-group) {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .settings-row-control.board-trigger-control {
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  .settings-row-control.board-trigger-control > .settings-input.board-trigger-webhook {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+  .settings-row:has(> .settings-row-control > .settings-toggle:only-child) > .settings-row-control { margin-left: 16px; }
+  /* board columns: the name takes the room that is left (its width is set inline) */
+  .settings-column-row { gap: 6px; }
+  .settings-column-row > .board-column-label-input { flex: 1 1 0; min-width: 0; width: auto !important; }
+  .settings-column-row > .settings-column-count { flex: none; }
+
+  /* Team: rows wrap, the role is a pill beside the name, "add" is a row under the list */
+  .settings-user { flex-wrap: wrap; row-gap: 8px; }
+  .settings-user-info { min-width: 0; flex: 1 1 140px; }
+  .settings-user-name, .settings-user-role { overflow-wrap: anywhere; }
+  .settings-user.clickable { margin: 0; padding: 10px 12px; }
+  .settings-user-name { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+  .settings-user-name .settings-user-role-pill {
+    display: inline-block;
+    font-size: 0.65rem;
+    padding: 0 6px;
+    min-width: 0;
+    border-radius: 999px;
+    line-height: 1.5;
+  }
+  .settings-user-name .settings-user-bot-badge,
+  .settings-user > .settings-user-actions { display: none; }
+  #team-action-buttons,
+  #settings-team-list .settings-group-title .settings-action-btn { display: none; }
+  .settings-add-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px;
+    margin-top: 4px;
+    border: 1px dashed var(--border-light);
+    border-radius: 8px;
+    background: none;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .settings-add-row:active { background: var(--surface-hover); }
+  .settings-add-row svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+}
