@@ -59,6 +59,31 @@
 - **Multi-arch Docker** — `linux/amd64` and `linux/arm64` images
 - **AWS Lambda support** — deploy as a serverless function with Lambda Web Adapter
 
+## Additions in this fork
+
+Everything below works with the standard LWTS server; no extra services are needed. Each addition lives on its own
+branch so it can be taken on its own (branches marked *builds on* need the one they name).
+
+### Fixes
+
+| Fix | Branch |
+|---|---|
+| Opening a card (browser Back/Forward, a `#KEY` link) while the new-card form is open no longer loads it into the form or saves a copy | `fix/reopen-card-while-creating` |
+| The due date picker stays inside the window instead of running off the bottom | `fix/due-date-picker-placement` |
+| The status list in a card follows the current board's columns | `fix/status-options-per-board` |
+
+### Features
+
+| Feature | Branch |
+|---|---|
+| **Side pane** — on wide screens a card opens in a resizable pane next to the board, which stays usable | `feat/card-side-pane` |
+| **New card on the board** — while a new card is being written it already shows on the board; closing the form saves it, Discard drops it | `feat/new-card-draft` |
+| **Epic in the new-card form** — pick the epic while creating a card | `feat/epic-in-new-card-form` |
+| **Epic as key and title** — the Epic field shows "ALP-9 Faster onboarding" instead of just the key | `feat/epic-key-and-title` |
+| **Type in the card header** — "ALP-12 / Bug", one row less in the sidebar | `feat/type-in-card-header` |
+| **New-card presets** — `openCreateModal(preset)` opens the form with a column, epic or other value already chosen | `feat/new-card-preset` |
+| **Dropdown search hardening** — password managers stay away from the dropdown search box | `feat/dropdown-search-hardening` |
+
 ## Quick Start
 
 ### Binary
