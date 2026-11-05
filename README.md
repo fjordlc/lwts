@@ -72,6 +72,7 @@ branch so it can be taken on its own (branches marked *builds on* need the one t
 | The due date picker stays inside the window instead of running off the bottom | `fix/due-date-picker-placement` |
 | The status list in a card follows the current board's columns | `fix/status-options-per-board` |
 | **Editor and profile polish** — the description and comment editors grow with their text and keep the column's edge, with Save/Cancel on the right; Profile in the avatar menu edits your own avatar from any page (members too), and a new avatar shows at once | `fix/dropzone-and-editor-polish` |
+| **Phones and iOS Safari** — column tabs open at the top, show filtered counts and stay off the list view and settings; cards no longer appear late; the board menu spans the screen and pushes the page down; card sidebar menus are no longer cut off; text fields stop iOS from zooming in | `fix/mobile-safari` |
 
 ### Features
 
