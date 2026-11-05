@@ -35,9 +35,9 @@
 </p>
 
 <p align="center">
-  <img src="docs/img/sc-phone-1.png" alt="The board on a phone, with column tabs and the bottom bar" width="24%" />
-  <img src="docs/img/sc-phone-2.png" alt="The Filter sheet on a phone" width="24%" />
-  <img src="docs/img/sc-phone-3.png" alt="Settings in the sheet on a phone" width="24%" />
+  <img src="docs/img/phone-board.png" alt="The board on a phone, with column tabs and the bottom bar" width="24%" />
+  <img src="docs/img/phone-filter.png" alt="The Filter sheet on a phone" width="24%" />
+  <img src="docs/img/phone-settings.png" alt="Settings in the sheet on a phone" width="24%" />
 </p>
 
 <p align="center"><sub>The <a href="docs/demo/README.md">demo board</a> was used to make these screenshots.</sub></p>
