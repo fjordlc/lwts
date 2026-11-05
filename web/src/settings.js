@@ -1695,6 +1695,101 @@ function toggleBoardEnabled(checkbox) {
 let _boardSettingsDebounce = {};
 const CUSTOM_FIELD_OPTION_COLORS = ['#579DFF', '#4ade80', '#fb8c00', '#f44336', '#9f8fef', '#6cc3e0', '#f5cd47', '#e040fb'];
 
+function _effectiveDefaultBoardId() {
+  if (typeof window.effectiveDefaultBoardId === 'function') return window.effectiveDefaultBoardId();
+  return (window.boardList && window.boardList[0] && window.boardList[0].id) || null;
+}
+
+let _defaultBoardDropdown = null;
+
+// Keeps the Default board dropdown, the "default" badges and the Delete board buttons in step
+// with the user's default board (it can also change from the board picker's star).
+function syncDefaultBoardSettings() {
+  const boards = window.boardList || [];
+  const defaultId = _effectiveDefaultBoardId();
+  const el = document.getElementById('settings-default-board-dropdown');
+  if (el && window.FnDropdown) {
+    const options = boards.map(b => ({ value: b.id, label: b.name }));
+    if (!_defaultBoardDropdown || !el.querySelector('.fn-dropdown-trigger')) {
+      el.innerHTML = '';
+      _defaultBoardDropdown = new window.FnDropdown(el, {
+        options,
+        value: defaultId || '',
+        compact: true,
+        onChange: async (val) => {
+          if (!val || val === _effectiveDefaultBoardId()) return;
+          const ok = typeof window.setDefaultBoard === 'function'
+            ? await window.setDefaultBoard(val)
+            : await window.savePreferences({ default_board_id: val }).then(() => true, () => false);
+          if (!ok) syncDefaultBoardSettings();
+        },
+      });
+    } else {
+      _defaultBoardDropdown.setOptions(options);
+      _defaultBoardDropdown.setValue(defaultId || '', true);
+    }
+  }
+  document.querySelectorAll('.settings-board-card[data-board-id]').forEach(card => {
+    const isDefault = card.dataset.boardId === defaultId;
+    const name = card.querySelector('.settings-board-name');
+    const badge = name && name.querySelector('.settings-board-badge');
+    if (isDefault && name && !badge) {
+      const b = document.createElement('span');
+      b.className = 'settings-board-badge';
+      b.textContent = 'default';
+      name.appendChild(b);
+    } else if (!isDefault && badge) {
+      badge.remove();
+    }
+    const del = card.querySelector('.board-delete-action');
+    if (del) {
+      del.disabled = isDefault;
+      del.title = isDefault ? 'This is your default board. Choose another default board first.' : '';
+    }
+  });
+  const presence = document.getElementById('settings-show-presence');
+  if (presence) presence.checked = !(window.userPrefs && window.userPrefs.show_presence === false);
+}
+
+function _bindBoardPersonalControls(container) {
+  container.querySelectorAll('.board-clear-done-toggle').forEach(input => {
+    input.addEventListener('change', async () => {
+      const boardId = input.dataset.boardId;
+      const map = { ...((window.userPrefs && window.userPrefs.clear_done_disabled) || {}) };
+      if (input.checked) delete map[boardId]; else map[boardId] = true;
+      try {
+        await window.savePreferences({ clear_done_disabled: Object.keys(map).length ? map : null });
+      } catch (e) {
+        input.checked = !input.checked;
+        window.Toast.error('Could not save the setting');
+      }
+    });
+  });
+  container.querySelectorAll('.board-delete-action').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const boardId = btn.dataset.boardId;
+      if (boardId === _effectiveDefaultBoardId()) return;
+      const board = (window.boardList || []).find(b => b.id === boardId);
+      const deleted = await window.deleteBoard(boardId, board ? board.name : boardId);
+      if (deleted) {
+        const card = btn.closest('.settings-board-card');
+        if (card) card.remove();
+        syncDefaultBoardSettings();
+      }
+    });
+  });
+}
+
+async function setShowPresence(on) {
+  try {
+    await window.savePreferences({ show_presence: !!on });
+  } catch (e) {
+    const input = document.getElementById('settings-show-presence');
+    if (input) input.checked = !on;
+    window.Toast.error('Could not save the setting');
+  }
+}
+
 async function loadBoardsSettings() {
   const container = document.getElementById('settings-boards-list');
   if (!container) return;
@@ -1720,11 +1815,12 @@ async function loadBoardsSettings() {
       const totalCards = Object.values(cardCounts).reduce((s, n) => s + n, 0);
       const columns = JSON.parse(board.columns || '[]');
       const configId = 'board-config-' + board.id;
-      const isDefault = idx === 0;
+      const isDefault = board.id === _effectiveDefaultBoardId();
       const boardIcon = '<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--text-dimmed);fill:none;stroke-width:2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>';
 
       const card = document.createElement('div');
       card.className = 'settings-board-card';
+      card.dataset.boardId = board.id;
 
       // Header
       const header = document.createElement('div');
@@ -1818,6 +1914,24 @@ async function loadBoardsSettings() {
           ${triggerRow('on_closed', 'On closed', 'A card moves to Closed (cleared)')}
         </div>`;
 
+      // Your own choices for this board, open to every role
+      const clearDoneOn = !(typeof window.isClearDoneHidden === 'function' && window.isClearDoneHidden(board.id));
+      configHTML += `
+        <div class="settings-group settings-personal">
+          <div class="settings-group-title">Just for you</div>
+          <div class="settings-row">
+            <div class="settings-row-label"><div class="settings-row-title">Clear done button</div><div class="settings-row-desc">Show the button that removes all cards in done columns</div></div>
+            <div class="settings-row-control"><label class="settings-toggle"><input type="checkbox" class="board-clear-done-toggle" data-board-id="${board.id}" ${clearDoneOn ? 'checked' : ''}><span class="toggle-track"></span></label></div>
+          </div>
+        </div>`;
+
+      if (typeof window.canDeleteBoard === 'function' && window.canDeleteBoard(board)) {
+        configHTML += `
+        <div class="settings-group settings-personal settings-board-actions">
+          <button type="button" class="settings-btn-danger board-delete-action" data-board-id="${board.id}">Delete board</button>
+        </div>`;
+      }
+
       config.innerHTML = configHTML;
       card.appendChild(config);
       container.appendChild(card);
@@ -1825,6 +1939,8 @@ async function loadBoardsSettings() {
 
     // Bind change handlers for all board inputs
     _bindBoardSettingsInputs();
+    _bindBoardPersonalControls(container);
+    syncDefaultBoardSettings();
   } catch (e) {
     container.innerHTML = '<div style="color:var(--text-dimmed);font-size:0.85rem;padding:8px 0">Failed to load boards</div>';
   }
@@ -3132,6 +3248,8 @@ window.openSettings = openSettings;
 window.closeSettings = closeSettings;
 window.toggleBoardEnabled = toggleBoardEnabled;
 window.loadBoardsSettings = loadBoardsSettings;
+window.syncDefaultBoardSettings = syncDefaultBoardSettings;
+window.setShowPresence = setShowPresence;
 window.loadTransitionsSettings = loadTransitionsSettings;
 window.testWebhook = testWebhook;
 window.DEFAULT_AVATARS = DEFAULT_AVATARS;

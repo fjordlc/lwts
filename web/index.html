@@ -272,7 +272,7 @@
       <button class="header-search-clear hidden" id="header-search-clear" onclick="clearGlobalSearch()">&times;</button>
       <div class="header-search-results hidden" id="header-search-results"></div>
     </div>
-    <button class="btn board-only-action" onclick="clearCompleted()">Clear done</button>
+    <button class="btn board-only-action" id="clear-done-btn" onclick="clearCompleted()">Clear done</button>
     <button class="btn board-only-action" onclick="openCreateModal()">
       <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       Add card
@@ -503,6 +503,12 @@
     <div class="settings-section" id="settings-boards">
       <div class="settings-section-title">Boards</div>
       <div class="settings-section-desc">Each board has its own key, columns, and triggers.</div>
+      <div class="settings-group settings-personal">
+        <div class="settings-row">
+          <div class="settings-row-label"><div class="settings-row-title">Default board</div><div class="settings-row-desc">The board you see when you open LWTS</div></div>
+          <div class="settings-row-control"><div id="settings-default-board-dropdown" style="width:200px"></div></div>
+        </div>
+      </div>
       <div id="settings-boards-list"></div>
     </div>
 
@@ -519,6 +525,12 @@
       <div class="settings-section-desc">Manage team members, roles, and permissions.</div>
       <div class="settings-section-action" id="team-action-buttons">
         <button class="btn settings-action-btn" onclick="openCreateUserModal()">+ Add member</button>
+      </div>
+      <div class="settings-group settings-personal">
+        <div class="settings-row">
+          <div class="settings-row-label"><div class="settings-row-title">Show team presence</div><div class="settings-row-desc">Show avatars of teammates currently online in the header</div></div>
+          <div class="settings-row-control"><label class="settings-toggle"><input type="checkbox" id="settings-show-presence" checked onchange="setShowPresence(this.checked)"><span class="toggle-track"></span></label></div>
+        </div>
       </div>
       <div class="settings-group">
         <div class="settings-group-title">Members</div>

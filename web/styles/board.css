@@ -180,6 +180,26 @@ body.light-theme #app-board::after {
 .header-board-option.new:hover {
   color: var(--text-primary);
 }
+/* Default-board star in the board picker */
+.board-default-btn {
+  margin-left: 8px;
+  padding: 0 4px;
+  border: none;
+  border-radius: 3px;
+  background: none;
+  color: var(--text-dimmed);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.board-default-btn:hover {
+  color: var(--text-primary);
+}
+.board-default-btn.is-default {
+  color: var(--text-primary);
+  cursor: default;
+}
 .header-board-sep {
   height: 1px;
   background: var(--border-faint);
@@ -287,7 +307,15 @@ body.light-theme #app-board::after {
   background: var(--accent-red-bg);
 }
 
-/* Presence avatars */
+/* Presence avatars (hidden when "Show team presence" is off) */
+body.presence-hidden .presence-avatar,
+body.presence-hidden .presence-overflow {
+  display: none;
+}
+/* The Clear done button, switched off for the open board */
+#clear-done-btn.clear-done-off {
+  display: none !important;
+}
 .presence-row {
   display: flex;
   align-items: center;

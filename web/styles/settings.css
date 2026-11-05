@@ -1202,6 +1202,30 @@ body.light-theme .board-theme-preview-card {
   opacity: 0.5;
   pointer-events: none;
 }
+/* Personal choices (default board, presence, Clear done) stay usable for every role */
+.settings-restricted .settings-personal .settings-toggle,
+.settings-restricted .settings-personal .settings-toggle input,
+.settings-restricted .settings-personal .settings-btn-danger {
+  opacity: 1;
+  pointer-events: auto;
+}
+.settings-board-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+.settings-btn-danger:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.settings-btn-danger:disabled:hover {
+  background: transparent;
+  border-color: rgba(248,113,113,0.25);
+  color: rgba(248,113,113,0.8);
+}
+.settings-restricted .settings-personal .settings-btn-danger:disabled {
+  opacity: 0.45;
+}
 .settings-restricted-notice {
   font-size: 0.8rem;
   color: var(--text-dimmed);

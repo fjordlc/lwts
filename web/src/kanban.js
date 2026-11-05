@@ -133,6 +133,61 @@ function getDefaultBoardId() {
   return (boardList[0] && boardList[0].id) || null;
 }
 
+// ── Personal preferences (GET/PUT /api/v1/me/preferences) ──
+// default_board_id: board opened at startup; show_presence: false hides the presence avatars;
+// clear_done_disabled: { <boardId>: true } hides the Clear done button on those boards.
+let userPrefs = {};
+
+async function loadPreferences() {
+  try {
+    const prefs = window.API && typeof window.API.getPreferences === 'function' ? await window.API.getPreferences() : null;
+    userPrefs = prefs && typeof prefs === 'object' && !Array.isArray(prefs) ? prefs : {};
+  } catch (e) {
+    userPrefs = {};
+  }
+  applyUserPrefs();
+  return userPrefs;
+}
+
+// Merges a patch (null removes a key) and keeps the server's answer. Throws when the save fails.
+async function savePreferences(patch) {
+  const saved = await window.API.putPreferences(patch);
+  if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+    userPrefs = saved;
+  } else {
+    const next = { ...userPrefs };
+    Object.entries(patch).forEach(([k, v]) => { if (v === null) delete next[k]; else next[k] = v; });
+    userPrefs = next;
+  }
+  applyUserPrefs();
+  return userPrefs;
+}
+
+// The user's default board: the chosen one while it exists, otherwise the first board.
+function effectiveDefaultBoardId() {
+  const chosen = userPrefs.default_board_id;
+  if (chosen && boardList.some(b => b.id === chosen)) return chosen;
+  return (boardList[0] && boardList[0].id) || null;
+}
+
+function isClearDoneHidden(boardId) {
+  const map = userPrefs.clear_done_disabled;
+  return !!(boardId && map && typeof map === 'object' && map[boardId]);
+}
+
+// The server lets admins, owners and the board's creator delete a board.
+function canDeleteBoard(board) {
+  const user = currentUser || (window.Auth && typeof window.Auth.getUser === 'function' && window.Auth.getUser());
+  if (!user || !board) return false;
+  return user.role === 'admin' || user.role === 'owner' || (!!board.owner_id && board.owner_id === user.id);
+}
+
+function applyUserPrefs() {
+  if (document.body) document.body.classList.toggle('presence-hidden', userPrefs.show_presence === false);
+  const btn = document.getElementById('clear-done-btn');
+  if (btn) btn.classList.toggle('clear-done-off', isClearDoneHidden(currentBoardId));
+}
+
 // Convert server card to local format
 function fromAPI(card) {
   let relatedIds = [];
@@ -240,17 +295,20 @@ function closeWelcome() {
 // Load state from API
 async function loadFromAPI() {
   try {
-    boardList = await window.API.listBoards();
+    const [boards] = await Promise.all([window.API.listBoards(), loadPreferences()]);
+    boardList = boards;
     if (!boardList || boardList.length === 0) {
       // No boards — create a default one
       const board = await window.API.createBoard({ name: 'kanban', project_key: 'KANB' });
       boardList = [board];
     }
 
-    // Use board ID from URL, then localStorage, then first board
+    // Use board ID from URL, then the user's default board, then the last board used, then the first board
     const urlBoardId = new URL(window.location).searchParams.get('board');
     if (urlBoardId && boardList.find(b => b.id === urlBoardId)) {
       currentBoardId = urlBoardId;
+    } else if (userPrefs.default_board_id && boardList.find(b => b.id === userPrefs.default_board_id)) {
+      currentBoardId = userPrefs.default_board_id;
     }
     if (!currentBoardId || !boardList.find(b => b.id === currentBoardId)) {
       currentBoardId = boardList[0].id;
@@ -261,6 +319,7 @@ async function loadFromAPI() {
     url.searchParams.set('board', currentBoardId);
     window.history.replaceState(null, '', url);
 
+    applyUserPrefs();
     await loadBoardCards(currentBoardId);
     window.renderBoardPicker();
 
@@ -3123,6 +3182,7 @@ function autoResizeTextarea(el) {
 
 function clearCompleted() {
   if (!currentBoardId || currentBoardId === 'all') return;
+  if (isClearDoneHidden(currentBoardId)) return;
 
   // All done-type columns — a board can have more than one.
   const doneIds = COLUMNS.filter(c => c.type === 'done').map(c => c.id);
@@ -3742,6 +3802,13 @@ window.loadFromAPI = loadFromAPI;
 window.loadBoardCards = loadBoardCards;
 window.rememberConcreteBoard = rememberConcreteBoard;
 window.getDefaultBoardId = getDefaultBoardId;
+Object.defineProperty(window, 'userPrefs', { get() { return userPrefs; }, set(v) { userPrefs = v || {}; }, configurable: true });
+window.loadPreferences = loadPreferences;
+window.savePreferences = savePreferences;
+window.effectiveDefaultBoardId = effectiveDefaultBoardId;
+window.isClearDoneHidden = isClearDoneHidden;
+window.canDeleteBoard = canDeleteBoard;
+window.applyUserPrefs = applyUserPrefs;
 window.loadFromLocalStorage = loadFromLocalStorage;
 window.save = save;
 window.render = render;

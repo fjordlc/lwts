@@ -22,27 +22,15 @@ function connectBoardStream(boardId) {
   }
 }
 
-// Populate board picker from API
+// Connect the board stream once the boards are loaded.
 async function loadBoardList() {
-  // kanban.js loadFromAPI() already fetches boards and sets boardList/currentBoardId.
+  // kanban.js loadFromAPI() fetches the boards and chooses the board to open (the URL's, your default
+  // board, the last one used); choosing here as well raced it and could open the first board instead.
   // If boards are already loaded, just ensure the SSE stream is connected.
   if (window.boardList && window.boardList.length > 0) {
     if (!currentBoardStream && window.currentBoardId && window.currentBoardId !== 'all') {
       connectBoardStream(window.currentBoardId);
     }
-    return;
-  }
-  try {
-    if (typeof window.API !== 'undefined') {
-      window.boardList = await window.API.listBoards();
-    }
-    if (!window.boardList || !window.boardList.length) return;
-    renderBoardPicker();
-    if (!window.currentBoardId) {
-      selectBoard(window.boardList[0].id, window.boardList[0].name);
-    }
-  } catch {
-    // API not available yet — use local state
   }
 }
 
@@ -58,7 +46,8 @@ function _buildPickerMenu(menu, opts) {
   const inSettings = opts.inSettings || false;
 
   // Board options
-  window.boardList.forEach((board, i) => {
+  const defaultId = typeof window.effectiveDefaultBoardId === 'function' ? window.effectiveDefaultBoardId() : (window.boardList[0] && window.boardList[0].id);
+  window.boardList.forEach((board) => {
     const opt = document.createElement('div');
     opt.className = 'header-board-option' + (activeId === board.id ? ' active' : '');
     opt.style.cssText = 'display:flex;align-items:center;justify-content:space-between;cursor:pointer';
@@ -75,8 +64,23 @@ function _buildPickerMenu(menu, opts) {
     opt.appendChild(nameSpan);
     opt.onclick = selectCurrentBoard;
 
-    // Delete button for non-first boards (only in board picker, not settings)
-    if (!inSettings && i > 0) {
+    // Star: your default board, opened at startup (only in board picker, not settings)
+    if (!inSettings) {
+      const isDefault = board.id === defaultId;
+      const star = document.createElement('button');
+      star.type = 'button';
+      star.className = 'board-default-btn' + (isDefault ? ' is-default' : '');
+      star.textContent = isDefault ? '\u2605' : '\u2606';
+      star.title = isDefault ? 'Your default board' : 'Make this your default board';
+      star.setAttribute('aria-label', star.title);
+      star.setAttribute('aria-pressed', isDefault ? 'true' : 'false');
+      star.onclick = (e) => { e.stopPropagation(); if (!isDefault) setDefaultBoard(board.id); };
+      opt.appendChild(star);
+    }
+
+    // Delete button for boards you may delete, except your default board (only in board picker, not settings)
+    const mayDelete = typeof window.canDeleteBoard === 'function' ? window.canDeleteBoard(board) : true;
+    if (!inSettings && mayDelete && board.id !== defaultId) {
       const del = document.createElement('span');
       del.className = 'board-delete-btn';
       del.innerHTML = '&times;';
@@ -152,19 +156,37 @@ function renderBoardPicker() {
 
 async function deleteBoard(boardId, boardName) {
   const ok = await window.fnConfirm('Delete board "' + boardName + '"? All cards on it will be lost.', 'Delete board', 'Delete');
-  if (!ok) return;
+  if (!ok) return false;
   try {
     await window.API.deleteBoard(boardId);
     window.boardList = window.boardList.filter(b => b.id !== boardId);
-    // If we deleted the current board, switch to first
+    // If we deleted the current board, switch to your default board
     if (window.currentBoardId === boardId && window.boardList.length > 0) {
-      selectBoard(window.boardList[0].id, window.boardList[0].name);
+      const nextId = typeof window.effectiveDefaultBoardId === 'function' ? window.effectiveDefaultBoardId() : window.boardList[0].id;
+      const next = window.boardList.find(b => b.id === nextId) || window.boardList[0];
+      selectBoard(next.id, next.name);
     }
     renderBoardPicker();
+    if (typeof window.syncDefaultBoardSettings === 'function') window.syncDefaultBoardSettings();
     window.Toast.success('Board "' + boardName + '" deleted');
+    return true;
   } catch (e) {
     window.Toast.error('Failed to delete board: ' + (e.message || 'unknown'));
+    return false;
   }
+}
+
+// Saves the board opened at startup for the signed-in user.
+async function setDefaultBoard(boardId) {
+  try {
+    await window.savePreferences({ default_board_id: boardId });
+  } catch (e) {
+    window.Toast.error('Could not save the default board');
+    return false;
+  }
+  renderBoardPicker();
+  if (typeof window.syncDefaultBoardSettings === 'function') window.syncDefaultBoardSettings();
+  return true;
 }
 
 function selectBoard(boardId, boardName) {
@@ -176,6 +198,7 @@ function selectBoard(boardId, boardName) {
     window.rememberConcreteBoard(boardId);
   }
   window.currentBoardId = boardId;
+  if (typeof window.applyUserPrefs === 'function') window.applyUserPrefs();
   if (typeof window.syncCurrentBoardTheme === 'function') {
     window.syncCurrentBoardTheme(boardId);
   }
@@ -2126,6 +2149,7 @@ window.connectBoardStream = connectBoardStream;
 window.renderBoardPicker = renderBoardPicker;
 window._buildPickerMenu = _buildPickerMenu;
 window.deleteBoard = deleteBoard;
+window.setDefaultBoard = setDefaultBoard;
 window.selectBoard = selectBoard;
 window.openNewBoardModal = openNewBoardModal;
 window.closeNewBoardModal = closeNewBoardModal;
