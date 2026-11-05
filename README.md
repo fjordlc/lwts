@@ -93,6 +93,7 @@ branch so it can be taken on its own (branches marked *builds on* need the one t
 | **Custom field filters** — one filter menu per choice custom field of the open board, next to Type, with a "No <field>" choice; works on the board and in the list view | `feat/custom-field-filters` (builds on `feat/group-by`) |
 | **Filters per board** — the assignee, priority, type and custom field filters are remembered per user and board and come back when the board is opened again | `feat/persist-filters` (builds on `feat/custom-field-filters`) |
 | **Card properties** — a Properties button chooses what the cards show (type, priority, assignee, points, due date, key, each custom field) and, in the list view, which columns show; remembered per user, board and view. The grouped property is not repeated on the cards, and what the Appearance settings turn off stays off | `feat/card-properties` (builds on `feat/persist-filters`) |
+| **Add-card rows** — every column and lane cell ends in an "Add card" row that adds the card right there (its column, epic or Group by value); an epic without cards keeps its cells so cards can be added or dragged in; the whole column or cell takes a drop; phones get a round New card button for the open tab's column | `feat/add-card-rows` (builds on `feat/card-properties`) |
 
 ## Quick Start
 

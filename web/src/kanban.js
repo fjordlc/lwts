@@ -904,6 +904,7 @@ function _renderGroupedBoard(frag, mode) {
       body.addEventListener('dragleave', onDragLeave);
       body.addEventListener('drop', onDrop);
       cell.appendChild(body);
+      _addCardRowAndDropzone(cell, body);
       cols.appendChild(cell);
     });
     lane.appendChild(cols);
@@ -1020,6 +1021,7 @@ function _renderStandardBoard(frag, keep) {
     body.addEventListener('drop', onDrop);
 
     colEl.appendChild(body);
+    _addCardRowAndDropzone(colEl, body);
     frag.appendChild(colEl);
   });
 }
@@ -1077,6 +1079,7 @@ function _renderEpicBoard(frag, epics) {
       body.addEventListener('drop', onDrop);
 
       cell.appendChild(body);
+      _addCardRowAndDropzone(cell, body);
       cols.appendChild(cell);
     });
 
@@ -1113,6 +1116,7 @@ function _renderEpicBoard(frag, epics) {
       body.addEventListener('drop', onDrop);
 
       cell.appendChild(body);
+      _addCardRowAndDropzone(cell, body);
       cols.appendChild(cell);
     });
 
@@ -1137,7 +1141,9 @@ function _buildEpicLayout(epics) {
       cardsByColumn,
       totalCount,
       openCount,
-      collapsed: openCount === 0,
+      // Only lanes whose cards are all done fold up; an epic without cards
+      // keeps its cells so cards can be added or dragged into it.
+      collapsed: openCount === 0 && totalCount > 0,
     };
   });
 
@@ -1153,6 +1159,51 @@ function _buildEpicLayout(epics) {
   });
 
   return { lanes, ungroupedByColumn, columnTotals };
+}
+
+// ── Add-card rows ──
+// Each column, and each lane cell, ends in an "Add card" row that opens the
+// new-card form for that column and lane (epic or Group by value). The card
+// list only takes the height of its cards, so the rest of the column or cell
+// passes drags on to the list: the whole cell is a dropzone.
+
+// The new-card preset for a card list (.column-body).
+function addCardPreset(body) {
+  const preset = { column_id: body.dataset.col };
+  if (body.dataset.epic !== undefined) preset.epic_id = body.dataset.epic || null;
+  return Object.assign(preset, groupPreset(body.dataset.groupBy, body.dataset.groupKey));
+}
+
+function _addCardRowAndDropzone(box, body) {
+  const row = document.createElement('button');
+  row.type = 'button';
+  row.className = 'column-add-card';
+  row.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Add card</span>';
+  row.addEventListener('click', () => openCreateModal(addCardPreset(body)));
+  box.appendChild(row);
+  box.addEventListener('dragover', e => _dragViaCardList(e, body, onDragOver));
+  box.addEventListener('drop', e => _dragViaCardList(e, body, onDrop));
+  box.addEventListener('dragleave', e => {
+    if (!box.contains(e.relatedTarget)) _dragViaCardList(e, body, onDragLeave);
+  });
+}
+
+// Hands a drag event from elsewhere in a column or cell to its card list (the
+// list's own listeners already saw events inside it).
+function _dragViaCardList(e, body, handler) {
+  if (e.target instanceof Element && body.contains(e.target)) return;
+  handler({
+    type: e.type, target: e.target, currentTarget: body, relatedTarget: e.relatedTarget,
+    clientX: e.clientX, clientY: e.clientY, dataTransfer: e.dataTransfer,
+    preventDefault: () => e.preventDefault(),
+  });
+}
+
+// The phones' round "New card" button: opens the form in the column whose tab is open.
+function openCreateFromButton() {
+  const tab = document.querySelector('.mobile-tab.active');
+  const col = tab && window.currentView !== 'list' ? tab.dataset.col : '';
+  openCreateModal(col ? { column_id: col } : {});
 }
 
 function createCardEl(card, colId, idx) {
@@ -3702,6 +3753,8 @@ window.currentGroupBy = currentGroupBy;
 window.setGroupBy = setGroupBy;
 window.cardGroupValue = cardGroupValue;
 window.groupPreset = groupPreset;
+window.addCardPreset = addCardPreset;
+window.openCreateFromButton = openCreateFromButton;
 window.CARD_PROPERTIES = CARD_PROPERTIES;
 window.LIST_COLUMNS = LIST_COLUMNS;
 window.hiddenCardProperties = hiddenCardProperties;

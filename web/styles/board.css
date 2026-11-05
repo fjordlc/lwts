@@ -1945,3 +1945,34 @@ body:not(.light-theme) .card-due-chip.due-future {
 /* without an avatar in the corner the title can use the full width */
 #board.cards-hide-assignee .card .card-title,
 body.hide-avatars .card .card-title { margin-right: 0; }
+
+/* ── Add-card rows ── */
+/* The card list is only as tall as its cards; the column or lane cell around
+   it passes drags on to it (kanban.js), so it is all one dropzone. */
+.column > .column-body,
+.epic-lane-cell > .column-body { flex: 0 0 auto; }
+.epic-lane-cell > .column-body { min-height: 0; }
+.column-body:has(+ .column-add-card) > .column-empty { display: none; }
+.column-add-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 8px 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border-light);
+  border-radius: 8px;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+.column-add-card:hover,
+.column-add-card:focus-visible { background: var(--surface-hover); color: var(--text-primary); }
+.column-add-card svg { width: 16px; height: 16px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 2; }
+@media (min-width: 769px) {
+  .epic-lane + .epic-lane { margin-top: 14px; }
+}
+/* The round "New card" button is for phones (see responsive.css). */
+.new-card-fab { display: none; }

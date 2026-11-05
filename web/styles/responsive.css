@@ -662,3 +662,44 @@
     transition: none;
   }
 }
+
+/* ── Add-card rows and the "New card" button on phones ── */
+@media (max-width: 768px) {
+  .column.mobile-active { flex: 0 0 auto; }
+  .column-add-card { margin-bottom: 0; }
+  .epic-lane-cell .column-add-card { margin: 4px 8px 8px; }
+  .epic-lane-cell > .column-body:not(:has(.card)) { padding-top: 6px; padding-bottom: 0; }
+  /* room to scroll the last row out from under the button */
+  .board::after { content: ''; flex: 0 0 96px; }
+  .new-card-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    right: 18px;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    z-index: 40;
+    width: 56px;
+    height: 56px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--accent, #3b82f6);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+  }
+  .new-card-fab:active { transform: scale(0.94); }
+  .new-card-fab svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 2.5; }
+  /* only on the board and the list, and out of the way while a form is open */
+  body:has(#app-board[style*="none"]) .new-card-fab,
+  body:has(.settings-page.active) .new-card-fab { display: none; }
+  body:has(.lwts-modal-overlay.active) .new-card-fab { transform: scale(0); opacity: 0; pointer-events: none; }
+  /* the list's epic headers: title, then the count at the end */
+  .list-epic-header { display: block; }
+  .list-epic-header td { display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; }
+  .list-epic-header td > * { margin-right: 0; }
+  .list-epic-header .list-epic-title { flex: 1 1 auto; min-width: 0; max-width: none; }
+  .list-epic-header .list-epic-count { float: none; margin-left: auto; white-space: nowrap; }
+}
