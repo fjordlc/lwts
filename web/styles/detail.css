@@ -285,9 +285,23 @@
 
 .detail-desc-edit-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 8px;
   margin-top: 10px;
 }
+
+/* The description and comment editors reach into the content padding by their own text inset
+   (padding + border), so the text keeps the column's left edge instead of jumping inwards when
+   editing starts. Their Save/Cancel buttons line up with the editor's right edge. */
+.detail-desc-edit { --editor-bleed: 15px; }
+.comment-expanded { --editor-bleed: 13px; }
+.detail-desc-edit .lwts-editor,
+.comment-expanded .lwts-editor {
+  margin-left: calc(-1 * var(--editor-bleed));
+  margin-right: calc(-1 * var(--editor-bleed));
+}
+.detail-desc-edit-actions,
+.comment-expanded-actions { margin-right: calc(-1 * var(--editor-bleed)); }
 
 /* Rendered markdown in desc view + comment text */
 .detail-desc-view strong, .detail-comment-text strong { font-weight: 600; }
@@ -546,11 +560,12 @@ body.light-theme .lwts-modal a[href]:hover {
 }
 
 .comment-expanded .lwts-editor {
-  width: 100%;
+  width: auto;
 }
 
 .comment-expanded-actions {
   display: flex;
+  justify-content: flex-end;
   gap: 8px;
 }
 
