@@ -387,7 +387,15 @@ let activeFilters = {
   priorities: [],   // multi-select
   tags: [],         // multi-select
   search: '',       // text search
+  custom: {},       // choice custom fields: field id -> option ids ('' = no value)
 };
+
+// How many filters are set (each ticked value counts, search counts once).
+function activeFilterCount() {
+  const custom = Object.values(activeFilters.custom || {}).reduce((n, v) => n + v.length, 0);
+  return activeFilters.assignees.length + activeFilters.priorities.length +
+    activeFilters.tags.length + (activeFilters.search ? 1 : 0) + custom;
+}
 
 let searchDebounceTimer = null;
 
@@ -724,6 +732,88 @@ function liftFilterMenu(menu) {
   menu.classList.add('filter-menu-lifted');
   menu.style.top = (bottom + 4) + 'px';
   menu.style.maxHeight = `calc(100dvh - ${bottom + 16}px)`;
+}
+
+// ── Custom field filters ──
+// One filter menu per choice custom field of the open board, after Type.
+// Each lists the field's choices and "No <field>".
+
+let _customFilterSignature = null;
+
+function _customFilterFields() {
+  if (typeof window.getBoardCustomFields !== 'function') return [];
+  return window.getBoardCustomFields(window.currentBoardId)
+    .filter(f => f && f.id && f.type === 'select' && Array.isArray(f.options) && f.options.length);
+}
+
+function syncCustomFieldFilters() {
+  const anchor = document.getElementById('filter-tag-wrap');
+  if (!anchor) return;
+  const fields = _customFilterFields();
+  const signature = (window.currentBoardId || '') + '|' + JSON.stringify(fields.map(f => [f.id, f.name, f.options.map(o => [o.id, o.label])]));
+  if (signature === _customFilterSignature) return;
+  _customFilterSignature = signature;
+
+  // Keep only the selections that still exist on this board
+  const kept = {};
+  fields.forEach(f => {
+    const ids = new Set(['', ...f.options.map(o => o.id)]);
+    const wanted = ((activeFilters.custom || {})[f.id] || []).filter(v => ids.has(v));
+    if (wanted.length) kept[f.id] = wanted;
+  });
+  activeFilters.custom = kept;
+
+  document.querySelectorAll('.filter-custom-field').forEach(el => el.remove());
+  document.querySelectorAll('body > .filter-custom-field-menu').forEach(el => el.remove()); // lifted on phones
+  let prev = anchor;
+  fields.forEach(f => {
+    const type = 'cf-' + f.id;
+    const wrap = document.createElement('div');
+    wrap.className = 'filter-dropdown filter-custom-field';
+    wrap.id = `filter-${type}-wrap`;
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn';
+    btn.type = 'button';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg>';
+    btn.append(' ' + f.name + ' ');
+    const badge = document.createElement('span');
+    badge.className = 'filter-badge';
+    badge.id = `filter-${type}-badge`;
+    btn.appendChild(badge);
+    btn.addEventListener('click', () => toggleFilterDropdown(type));
+    const menu = document.createElement('div');
+    menu.className = 'filter-menu filter-custom-field-menu hidden';
+    menu.id = `filter-${type}-menu`;
+    const items = document.createElement('div');
+    items.className = 'filter-menu-items';
+    f.options.concat([{ id: '', label: 'No ' + String(f.name).toLowerCase() }]).forEach(opt => {
+      const label = document.createElement('label');
+      label.className = 'filter-checkbox-item';
+      label.dataset.label = opt.label || '';
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.value = opt.id;
+      box.checked = (activeFilters.custom[f.id] || []).includes(opt.id);
+      box.addEventListener('change', () => onCustomFieldFilter(f.id, box));
+      const name = document.createElement('span');
+      name.textContent = opt.label || opt.id;
+      label.append(box, name);
+      items.appendChild(label);
+    });
+    menu.appendChild(items);
+    wrap.append(btn, menu);
+    prev.after(wrap);
+    prev = wrap;
+    updateFilterBadge(type, (activeFilters.custom[f.id] || []).length);
+  });
+}
+
+function onCustomFieldFilter(fieldId, checkbox) {
+  const wanted = (activeFilters.custom[fieldId] || []).filter(v => v !== checkbox.value);
+  if (checkbox.checked) wanted.push(checkbox.value);
+  if (wanted.length) activeFilters.custom[fieldId] = wanted;
+  else delete activeFilters.custom[fieldId];
+  window.applyFilters();
 }
 
 // ── Sort ──
@@ -1078,7 +1168,13 @@ function onFilterSearch(value) {
   }, 200);
 }
 
+function _cardMatchesCustomFilters(card) {
+  const values = card.custom_fields || {};
+  return Object.entries(activeFilters.custom || {}).every(([id, wanted]) => !wanted.length || wanted.includes(values[id] || ''));
+}
+
 function _cardMatchesFilters(card) {
+  if (!_cardMatchesCustomFilters(card)) return false;
   if (activeFilters.assignees.length > 0 && !activeFilters.assignees.includes(card.assignee)) return false;
   if (activeFilters.priorities.length > 0 && !activeFilters.priorities.includes(card.priority)) return false;
   if (activeFilters.tags.length > 0 && !activeFilters.tags.includes(card.tag)) return false;
@@ -1103,8 +1199,7 @@ function _cardMatchesFilters(card) {
 }
 
 function applyFilters() {
-  const hasFilters = activeFilters.assignees.length > 0 || activeFilters.priorities.length > 0 ||
-                     activeFilters.tags.length > 0 || activeFilters.search.length > 0;
+  const hasFilters = activeFilterCount() > 0;
 
   // Filter all cards across all column-body elements (works in both standard and epic mode)
   document.querySelectorAll('.column-body .card').forEach(cardEl => {
@@ -1163,7 +1258,7 @@ function applyFilters() {
     const card = cards.find(c => c.id === cardId);
     if (!card) { rowEl.style.display = ''; return; }
 
-    let visible = true;
+    let visible = _cardMatchesCustomFilters(card);
     if (activeFilters.assignees.length > 0 && !activeFilters.assignees.includes(card.assignee)) visible = false;
     if (activeFilters.priorities.length > 0 && !activeFilters.priorities.includes(card.priority)) visible = false;
     if (activeFilters.tags.length > 0 && !activeFilters.tags.includes(card.tag)) visible = false;
@@ -1182,12 +1277,12 @@ function applyFilters() {
   updateFilterBadge('assignee', activeFilters.assignees.length);
   updateFilterBadge('priority', activeFilters.priorities.length);
   updateFilterBadge('tag', activeFilters.tags.length);
+  Object.entries(activeFilters.custom || {}).forEach(([id, wanted]) => updateFilterBadge('cf-' + id, wanted.length));
 
   // Update status text
   const statusEl = document.getElementById('filter-status');
   if (statusEl) {
-    const count = activeFilters.assignees.length + activeFilters.priorities.length +
-                  activeFilters.tags.length + (activeFilters.search ? 1 : 0);
+    const count = activeFilterCount();
     if (count > 0) {
       statusEl.innerHTML = `<span class="filter-count">${count} filter${count > 1 ? 's' : ''}</span>` +
         `<button class="filter-clear" onclick="clearAllFilters()">Clear all</button>`;
@@ -1208,11 +1303,11 @@ function updateFilterBadge(type, count) {
 function clearAllFilters() {
   const onlyEpic = _onlyEpicTypeFilter();
   // Cleared in place: other modules hold window.activeFilters
-  Object.assign(activeFilters, { assignees: [], priorities: [], tags: [], search: '' });
+  Object.assign(activeFilters, { assignees: [], priorities: [], tags: [], search: '', custom: {} });
   const filterSearchEl = document.getElementById('filter-search');
   if (filterSearchEl) filterSearchEl.value = '';
   // The card filters only; the status and epic menus are view choices
-  document.querySelectorAll('#filter-assignee-menu, #filter-priority-menu, #filter-tag-menu')
+  document.querySelectorAll('#filter-assignee-menu, #filter-priority-menu, #filter-tag-menu, .filter-custom-field-menu')
     .forEach(menu => menu.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; }));
   if (onlyEpic) window.render();
   else window.applyFilters();
@@ -1873,14 +1968,14 @@ if (_origRender) {
   window.render = function() {
     _origRender();
     initFilterBar();
+    syncCustomFieldFilters();
     applyColumnVisibility();
     applyEpicLaneVisibility();
     applyCardSortButton();
     applyGroupByButton();
     injectDueDateChips();
     // Re-apply filters if any are active
-    if (activeFilters.assignees.length || activeFilters.priorities.length ||
-        activeFilters.tags.length || activeFilters.search) {
+    if (activeFilterCount() > 0) {
       window.applyFilters();
     }
   };
@@ -1922,6 +2017,9 @@ window.openNewBoardModal = openNewBoardModal;
 window.closeNewBoardModal = closeNewBoardModal;
 window.submitNewBoard = submitNewBoard;
 window.activeFilters = activeFilters;
+window.activeFilterCount = activeFilterCount;
+window.syncCustomFieldFilters = syncCustomFieldFilters;
+window.onCustomFieldFilter = onCustomFieldFilter;
 window.initFilterBar = initFilterBar;
 window.buildDensityOptions = buildDensityOptions;
 window.getCurrentDensity = getCurrentDensity;

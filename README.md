@@ -90,6 +90,7 @@ branch so it can be taken on its own (branches marked *builds on* need the one t
 | **Epic filter** — choose which epic swimlanes (and the lane without epic) show on the board and in the list view, remembered per board; a card moves to its new epic's lane as soon as the epic is picked | `feat/epic-lane-filter` (builds on `feat/status-filter`) |
 | **Sort cards** — a Sort button orders each column (and the list) by priority, title, key, last updated or created, or keeps the manual drag order, without changing the stored order; each board remembers its sort, board/list view and density | `feat/sort-cards` (builds on `feat/epic-lane-filter`) |
 | **Group by** — show the board in swimlanes by epic (the default on boards with epics), type, priority, assignee or a choice custom field switched on with "Add to Group by", or in plain columns; dragging a card into another lane sets that value; remembered per user and board | `feat/group-by` (builds on `feat/sort-cards`) |
+| **Custom field filters** — one filter menu per choice custom field of the open board, next to Type, with a "No <field>" choice; works on the board and in the list view | `feat/custom-field-filters` (builds on `feat/group-by`) |
 
 ## Quick Start
 

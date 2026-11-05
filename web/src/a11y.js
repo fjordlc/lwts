@@ -336,8 +336,8 @@ if (_origApplyFilters) {
   window.applyFilters = function() {
     _origApplyFilters();
     const af = window.activeFilters || {};
-    const count = (af.assignees?.length || 0) + (af.priorities?.length || 0) +
-                  (af.tags?.length || 0) + (af.search ? 1 : 0);
+    const count = typeof window.activeFilterCount === 'function' ? window.activeFilterCount()
+      : (af.assignees?.length || 0) + (af.priorities?.length || 0) + (af.tags?.length || 0) + (af.search ? 1 : 0);
     if (count > 0) {
       const visible = document.querySelectorAll('.card:not([style*="display: none"])').length;
       announce(`${count} filter${count > 1 ? 's' : ''} active, showing ${visible} cards`);
