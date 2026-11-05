@@ -1336,7 +1336,9 @@ body:is([data-board-theme="summer-duotone"], [data-board-theme="round-geometric"
   justify-content: center;
 }
 .filter-btn-icon.filter-btn-active { background: var(--surface-hover); }
-#filter-sort-menu, #filter-group-menu { min-width: 190px; }
+#filter-sort-menu, #filter-group-menu, #filter-props-menu { min-width: 190px; }
+.filter-sort-item.disabled { cursor: default; color: var(--text-dimmed); }
+.filter-props-note { margin-left: 8px; font-size: 0.7rem; color: var(--text-dimmed); }
 .filter-menu-title {
   padding: 6px 12px 4px;
   font-size: 0.68rem;
@@ -1931,3 +1933,15 @@ body:not(.light-theme) .card-due-chip.due-future {
   border-radius: 50%;
   flex-shrink: 0;
 }
+
+/* ── Card properties (the Properties button) ── */
+#board.cards-hide-type .card .card-tag,
+#board.cards-hide-priority .card .card-priority,
+#board.cards-hide-assignee .card .card-avatar-corner,
+#board.cards-hide-points .card .card-points,
+#board.cards-hide-due .card .card-due-chip,
+#board.cards-hide-key .card .card-key { display: none; }
+#board.cards-hide-type .card .card-tags:not(:has(.card-custom-chip)) { display: none; }
+/* without an avatar in the corner the title can use the full width */
+#board.cards-hide-assignee .card .card-title,
+body.hide-avatars .card .card-title { margin-right: 0; }

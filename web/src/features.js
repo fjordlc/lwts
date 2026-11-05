@@ -465,6 +465,12 @@ function initFilterBar() {
           </button>
           <div class="filter-menu hidden" id="filter-group-menu"></div>
         </div>
+        <div class="filter-dropdown" id="filter-props-wrap">
+          <button class="filter-btn filter-btn-icon" onclick="toggleFilterDropdown('props')" aria-label="Card properties" title="Card properties">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+          </button>
+          <div class="filter-menu hidden" id="filter-props-menu"></div>
+        </div>
         <div class="filter-dropdown" id="filter-density-wrap">
           <button class="filter-btn" onclick="toggleFilterDropdown('density')">
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -711,6 +717,7 @@ function toggleFilterDropdown(type) {
   if (type === 'epic') buildEpicFilterMenu();
   if (type === 'sort') buildCardSortMenu();
   if (type === 'group') buildGroupByMenu();
+  if (type === 'props') buildCardPropsMenu();
   // Menus open next to their button again after a phone has lifted them out.
   const wrap = document.getElementById(`filter-${type}-wrap`);
   if (wrap && menu.parentNode !== wrap) {
@@ -947,6 +954,63 @@ function applyGroupByButton() {
   const mode = window.currentGroupBy();
   btn.classList.toggle('filter-btn-active', mode !== window.defaultGroupBy());
   btn.title = 'Group by: ' + window.groupByLabel(mode);
+}
+
+// ── Card properties ──
+// The Properties button chooses what the board's cards show, or in the list
+// which columns show (kanban.js keeps the choice and draws it).
+
+function buildCardPropsMenu() {
+  const menu = document.getElementById('filter-props-menu');
+  if (!menu || typeof window.cardPropertyItems !== 'function') return;
+  const list = window.currentView === 'list';
+  menu.innerHTML = '';
+  const title = document.createElement('div');
+  title.className = 'filter-menu-title';
+  title.textContent = list ? 'List columns' : 'Card properties';
+  menu.appendChild(title);
+  window.cardPropertyItems().forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'filter-checkbox-item filter-sort-item' + (item.shown ? ' shown' : '') + (item.reason ? ' disabled' : '');
+    row.dataset.prop = item.id;
+    const name = document.createElement('span');
+    name.textContent = item.label;
+    if (item.reason) {
+      const note = document.createElement('span');
+      note.className = 'filter-props-note';
+      note.textContent = item.reason === 'grouped' ? 'grouped' : 'off in Appearance';
+      name.appendChild(note);
+    }
+    const check = document.createElement('span');
+    check.className = 'filter-sort-dir';
+    check.textContent = item.shown ? '\u2713' : '';
+    row.append(name, check);
+    if (!item.reason) row.addEventListener('click', (e) => { e.stopPropagation(); toggleCardPropertyFromMenu(item.id); });
+    menu.appendChild(row);
+  });
+}
+
+// The menu stays open, so several properties can be switched in a row.
+function toggleCardPropertyFromMenu(id) {
+  window.toggleCardProperty(id);
+  if (window.currentView === 'list') {
+    if (typeof window.renderListView === 'function') window.renderListView();
+    applyCardPropsButton();
+  } else {
+    window.render();
+  }
+  buildCardPropsMenu();
+}
+
+function applyCardPropsButton() {
+  const btn = document.querySelector('#filter-props-wrap .filter-btn');
+  if (!btn || typeof window.hiddenCardProperties !== 'function') return;
+  const list = window.currentView === 'list';
+  const label = list ? 'List columns' : 'Card properties';
+  const hidden = window.hiddenCardProperties().size;
+  btn.classList.toggle('filter-btn-active', hidden > 0);
+  btn.title = hidden ? label + ': ' + hidden + ' hidden' : label;
+  btn.setAttribute('aria-label', label);
 }
 
 // ── Status filter ──
@@ -2022,6 +2086,7 @@ if (_origRender) {
     applyEpicLaneVisibility();
     applyCardSortButton();
     applyGroupByButton();
+    applyCardPropsButton();
     injectDueDateChips();
     // Re-apply filters if any are active
     if (activeFilterCount() > 0) {
@@ -2079,6 +2144,9 @@ window.applyDensity = applyDensity;
 window.buildCardSortMenu = buildCardSortMenu;
 window.buildGroupByMenu = buildGroupByMenu;
 window.chooseGroupBy = chooseGroupBy;
+window.buildCardPropsMenu = buildCardPropsMenu;
+window.toggleCardPropertyFromMenu = toggleCardPropertyFromMenu;
+window.applyCardPropsButton = applyCardPropsButton;
 window.chooseCardSort = chooseCardSort;
 window.initDensityToggleLabel = initDensityToggleLabel;
 window.buildFilterCheckboxes = buildFilterCheckboxes;

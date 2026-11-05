@@ -214,8 +214,9 @@ function customFieldDisplayValue(def, value) {
 function renderCardCustomFieldChips(card) {
   const defs = getBoardCustomFields(card.board_id || currentBoardId);
   const values = card.custom_fields || {};
+  const hidden = _renderHidden || _hiddenOnCards();
   return defs
-    .filter(def => values[def.id])
+    .filter(def => values[def.id] && !hidden.has('cf:' + def.id))
     .slice(0, 2)
     .map(def => {
       const opt = getCustomFieldOption(def, values[def.id]);
@@ -695,6 +696,116 @@ function groupPreset(mode, value) {
   return {};
 }
 
+// ── Card properties ──
+// Which properties show on the board's cards, and which columns show in the
+// list. Kept per user, board and view in this browser (a list of hidden ids).
+// The property the board is grouped by is not repeated on its cards.
+// The Appearance settings (card IDs, avatars, priority icons) are the account's
+// switches for every board: what they turn off stays off, and a board can hide
+// more on top. They only remove icons, so list columns are not affected.
+
+const CARD_PROPS_KEY = 'lwts-card-props:';
+const CARD_PROPERTIES = [
+  { id: 'type', label: 'Type' },
+  { id: 'priority', label: 'Priority', appearance: 'hide-priority' },
+  { id: 'assignee', label: 'Assignee', appearance: 'hide-avatars' },
+  { id: 'points', label: 'Points' },
+  { id: 'due', label: 'Due date' },
+  { id: 'key', label: 'Key', appearance: 'hide-card-ids' },
+];
+const LIST_COLUMNS = [
+  { id: 'key', label: 'Key' },
+  { id: 'status', label: 'Status' },
+  { id: 'type', label: 'Type' },
+  { id: 'priority', label: 'Priority' },
+  { id: 'assignee', label: 'Assignee' },
+  { id: 'points', label: 'Points' },
+  { id: 'created', label: 'Created' },
+  { id: 'updated', label: 'Updated' },
+  { id: 'due', label: 'Due date' },
+];
+const _cardPropsMemory = {}; // also keeps the choice when storage is unavailable
+
+function _propsView(view) {
+  return (view || window.currentView) === 'list' ? 'list' : 'board';
+}
+
+function _cardPropsStorageKey(view, boardId) {
+  const user = (window.Auth && typeof window.Auth.getUser === 'function' && window.Auth.getUser()) || currentUser;
+  return CARD_PROPS_KEY + ((user && user.id) || 'anon') + ':' + (boardId || currentBoardId || '') + ':' + _propsView(view);
+}
+
+// The ids hidden by choice on this board and view.
+function hiddenCardProperties(view) {
+  const key = _cardPropsStorageKey(view);
+  if (!(key in _cardPropsMemory)) {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(key) || 'null'); } catch { saved = null; }
+    _cardPropsMemory[key] = Array.isArray(saved) ? saved.filter(id => typeof id === 'string') : [];
+  }
+  return new Set(_cardPropsMemory[key]);
+}
+
+function toggleCardProperty(id, view) {
+  const key = _cardPropsStorageKey(view);
+  const hidden = hiddenCardProperties(view);
+  if (hidden.has(id)) hidden.delete(id); else hidden.add(id);
+  _cardPropsMemory[key] = [...hidden];
+  try {
+    if (hidden.size) localStorage.setItem(key, JSON.stringify([...hidden]));
+    else localStorage.removeItem(key);
+  } catch { /* storage unavailable: the choice lasts until reload */ }
+  return !hidden.has(id);
+}
+
+// The card property the board's grouping already shows ('' for none).
+function _groupedCardProperty() {
+  const mode = currentGroupBy();
+  if (mode === 'type' || mode === 'priority' || mode === 'assignee') return mode;
+  return mode.startsWith('cf:') ? mode : '';
+}
+
+// The rows of the Properties menu for a view: { id, label, shown, reason }.
+// reason ('grouped' | 'appearance') marks a row that cannot be switched here.
+function cardPropertyItems(view) {
+  const v = _propsView(view);
+  const hidden = hiddenCardProperties(v);
+  if (v === 'list') return LIST_COLUMNS.map(c => ({ id: c.id, label: c.label, shown: !hidden.has(c.id), reason: '' }));
+  const grouped = _groupedCardProperty();
+  const fields = getBoardCustomFields().filter(f => f && f.id)
+    .map(f => ({ id: 'cf:' + f.id, label: f.name || f.id }));
+  return CARD_PROPERTIES.concat(fields).map(p => {
+    const reason = p.id === grouped ? 'grouped'
+      : p.appearance && document.body.classList.contains(p.appearance) ? 'appearance' : '';
+    return { id: p.id, label: p.label, shown: !reason && !hidden.has(p.id), reason };
+  });
+}
+
+let _renderHidden = null; // _hiddenOnCards() for the cards of one render
+
+// Ids hidden on the board's cards right now (by choice or by the grouping).
+function _hiddenOnCards() {
+  const hidden = hiddenCardProperties('board');
+  const grouped = _groupedCardProperty();
+  if (grouped) hidden.add(grouped);
+  return hidden;
+}
+
+// Puts the hide classes on the board and the list (the stylesheets do the rest).
+function applyCardProperties() {
+  const board = document.getElementById('board');
+  if (board) {
+    const hidden = _hiddenOnCards();
+    CARD_PROPERTIES.forEach(p => board.classList.toggle('cards-hide-' + p.id, hidden.has(p.id)));
+  }
+  const list = document.getElementById('list-view');
+  if (list) {
+    const hidden = hiddenCardProperties('list');
+    LIST_COLUMNS.forEach(c => list.classList.toggle('list-hide-' + c.id, hidden.has(c.id)));
+  }
+  if (typeof window.applyCardPropsButton === 'function') window.applyCardPropsButton();
+}
+
 // Groups for the cards, in the order of the property's values; groups
 // without cards are left out and "none" comes last.
 function _buildGroups(mode, cards) {
@@ -825,6 +936,7 @@ function render() {
   const frag = document.createDocumentFragment();
   const mode = currentGroupBy();
   board.dataset.groupBy = mode;
+  _renderHidden = _hiddenOnCards();
 
   if (_showingEpicCards()) {
     board.classList.remove('board-epic-mode');
@@ -863,8 +975,10 @@ function render() {
     }
   }
 
+  _renderHidden = null;
   board.innerHTML = '';
   board.appendChild(frag);
+  applyCardProperties();
   _scheduleColumnHeightSync();
 
 }
@@ -3588,6 +3702,12 @@ window.currentGroupBy = currentGroupBy;
 window.setGroupBy = setGroupBy;
 window.cardGroupValue = cardGroupValue;
 window.groupPreset = groupPreset;
+window.CARD_PROPERTIES = CARD_PROPERTIES;
+window.LIST_COLUMNS = LIST_COLUMNS;
+window.hiddenCardProperties = hiddenCardProperties;
+window.toggleCardProperty = toggleCardProperty;
+window.cardPropertyItems = cardPropertyItems;
+window.applyCardProperties = applyCardProperties;
 window.boardShowsStoredOrder = boardShowsStoredOrder;
 window.CARD_SORT_OPTIONS = CARD_SORT_OPTIONS;
 window.getCardSort = getCardSort;

@@ -398,3 +398,14 @@ body.light-theme .list-row.drop-target {
     max-width: 200px;
   }
 }
+
+/* ── List columns hidden with the Properties button ── */
+#list-view.list-hide-key .list-col-key,
+#list-view.list-hide-status .list-col-status,
+#list-view.list-hide-type .list-col-type,
+#list-view.list-hide-priority .list-col-priority,
+#list-view.list-hide-assignee .list-col-assignee,
+#list-view.list-hide-points .list-col-points,
+#list-view.list-hide-created .list-col-created,
+#list-view.list-hide-updated .list-col-updated,
+#list-view.list-hide-due .list-col-due { display: none; }

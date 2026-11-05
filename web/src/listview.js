@@ -227,19 +227,19 @@ function createListRow(card, animIdx) {
 
   // Key
   const tdKey = document.createElement('td');
-  tdKey.className = 'list-cell list-cell-key';
+  tdKey.className = 'list-cell list-cell-key list-col-key';
   tdKey.textContent = card.key || '';
   row.appendChild(tdKey);
 
   // Title
   const tdTitle = document.createElement('td');
-  tdTitle.className = 'list-cell list-cell-title';
+  tdTitle.className = 'list-cell list-cell-title list-col-title';
   tdTitle.textContent = card.title || '';
   row.appendChild(tdTitle);
 
   // Status
   const tdStatus = document.createElement('td');
-  tdStatus.className = 'list-cell list-cell-status';
+  tdStatus.className = 'list-cell list-cell-status list-col-status';
   const statusWrap = document.createElement('span');
   statusWrap.className = 'list-status-wrap';
   statusWrap.style.display = 'inline-flex';
@@ -255,7 +255,7 @@ function createListRow(card, animIdx) {
 
   // Type (tag)
   const tdTag = document.createElement('td');
-  tdTag.className = 'list-cell list-cell-tag';
+  tdTag.className = 'list-cell list-cell-tag list-col-type';
   const tagSpan = document.createElement('span');
   tagSpan.className = 'card-tag tag-' + window.esc(card.tag || 'blue');
   tagSpan.textContent = window.TAG_LABELS[card.tag] || card.tag || '';
@@ -264,7 +264,7 @@ function createListRow(card, animIdx) {
 
   // Priority
   const tdPriority = document.createElement('td');
-  tdPriority.className = 'list-cell list-cell-priority';
+  tdPriority.className = 'list-cell list-cell-priority list-col-priority';
   const priWrap = document.createElement('span');
   priWrap.style.display = 'inline-flex';
   priWrap.style.alignItems = 'center';
@@ -280,7 +280,7 @@ function createListRow(card, animIdx) {
 
   // Assignee
   const tdAssignee = document.createElement('td');
-  tdAssignee.className = 'list-cell list-cell-assignee';
+  tdAssignee.className = 'list-cell list-cell-assignee list-col-assignee';
   const user = window.getUserById(card.assignee);
   if (user.value !== 'unassigned') {
     const assigneeWrap = document.createElement('span');
@@ -312,27 +312,27 @@ function createListRow(card, animIdx) {
 
   // Points
   const tdPoints = document.createElement('td');
-  tdPoints.className = 'list-cell list-cell-points';
+  tdPoints.className = 'list-cell list-cell-points list-col-points';
   tdPoints.textContent = card.points || '';
   row.appendChild(tdPoints);
 
   // Created
   const tdCreated = document.createElement('td');
-  tdCreated.className = 'list-cell list-cell-date';
+  tdCreated.className = 'list-cell list-cell-date list-col-created';
   tdCreated.textContent = card.created_at ? formatRelativeTime(card.created_at) : '';
   if (card.created_at) tdCreated.title = new Date(card.created_at).toLocaleString();
   row.appendChild(tdCreated);
 
   // Updated
   const tdUpdated = document.createElement('td');
-  tdUpdated.className = 'list-cell list-cell-date';
+  tdUpdated.className = 'list-cell list-cell-date list-col-updated';
   tdUpdated.textContent = card.updated_at ? formatRelativeTime(card.updated_at) : '';
   if (card.updated_at) tdUpdated.title = new Date(card.updated_at).toLocaleString();
   row.appendChild(tdUpdated);
 
   // Due Date
   const tdDate = document.createElement('td');
-  tdDate.className = 'list-cell list-cell-date';
+  tdDate.className = 'list-cell list-cell-date list-col-due';
   tdDate.textContent = card.date || '';
   row.appendChild(tdDate);
 
@@ -415,23 +415,23 @@ function renderListView() {
   thead.className = 'list-header';
   const headerRow = document.createElement('tr');
   const columns = [
-    { key: 'key', label: 'Key' },
-    { key: 'title', label: 'Title' },
-    { key: 'status', label: 'Status' },
-    { key: 'tag', label: 'Type' },
-    { key: 'priority', label: 'Priority' },
-    { key: 'assignee', label: 'Assignee' },
-    { key: 'points', label: 'Pts' },
-    { key: 'created', label: 'Created' },
-    { key: 'updated', label: 'Updated' },
-    { key: 'date', label: 'Due' },
+    { key: 'key', label: 'Key', col: 'key' },
+    { key: 'title', label: 'Title', col: 'title' },
+    { key: 'status', label: 'Status', col: 'status' },
+    { key: 'tag', label: 'Type', col: 'type' },
+    { key: 'priority', label: 'Priority', col: 'priority' },
+    { key: 'assignee', label: 'Assignee', col: 'assignee' },
+    { key: 'points', label: 'Pts', col: 'points' },
+    { key: 'created', label: 'Created', col: 'created' },
+    { key: 'updated', label: 'Updated', col: 'updated' },
+    { key: 'date', label: 'Due', col: 'due' },
   ];
 
   columns.forEach(col => {
     const th = document.createElement('th');
     th.textContent = col.label;
     th.dataset.sort = col.key;
-    th.className = 'list-header-cell sortable';
+    th.className = 'list-header-cell sortable list-col-' + col.col;
     if (listSortCol === col.key) {
       th.classList.add(listSortDir === 'asc' ? 'sort-asc' : 'sort-desc');
     }
@@ -454,6 +454,8 @@ function renderListView() {
   // Single DOM swap
   container.innerHTML = '';
   container.appendChild(table);
+  // Columns hidden with the Properties button
+  if (typeof window.applyCardProperties === 'function') window.applyCardProperties();
 
   // Check for epics — group rows if any exist
   const epics = _listAllCards.filter(c => c.tag === 'epic');
@@ -466,6 +468,13 @@ function renderListView() {
   // Attach scroll listener for infinite scroll
   _listScrollHandler = onListScroll;
   container.addEventListener('scroll', _listScrollHandler);
+}
+
+// Title plus the columns not hidden with the Properties button.
+function _shownColumnCount() {
+  const all = window.LIST_COLUMNS || [];
+  const hidden = typeof window.hiddenCardProperties === 'function' ? window.hiddenCardProperties('list') : new Set();
+  return 1 + all.filter(c => !hidden.has(c.id)).length;
 }
 
 function _renderGroupedList(tbody, epics) {
@@ -481,7 +490,7 @@ function _renderGroupedList(tbody, epics) {
     const headerRow = document.createElement('tr');
     headerRow.className = 'list-epic-header';
     const headerCell = document.createElement('td');
-    headerCell.colSpan = 10;
+    headerCell.colSpan = _shownColumnCount();
     headerCell.innerHTML = `
       <span class="list-epic-key">${window.esc(epic.key)}</span>
       <span class="list-epic-title">${window.esc(epic.title)}</span>
@@ -511,7 +520,7 @@ function _renderGroupedList(tbody, epics) {
     const headerRow = document.createElement('tr');
     headerRow.className = 'list-epic-header list-epic-ungrouped';
     const headerCell = document.createElement('td');
-    headerCell.colSpan = 10;
+    headerCell.colSpan = _shownColumnCount();
     headerCell.innerHTML = `
       <span class="list-epic-title">Other</span>
       <span class="list-epic-count">${ungrouped.length} card${ungrouped.length !== 1 ? 's' : ''}</span>
