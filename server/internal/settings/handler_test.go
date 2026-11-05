@@ -229,3 +229,62 @@ func TestResetWorkspace(t *testing.T) {
 		t.Errorf("expected 0 boards after reset, got %d", len(list))
 	}
 }
+
+func putUser(t *testing.T, mux *http.ServeMux, as repo.User, targetID, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest("PUT", "/api/v1/users/"+targetID, bytes.NewBufferString(body))
+	req = withUser(req, as)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	return w
+}
+
+func TestUpdateUserOwnAvatar(t *testing.T) {
+	h, users, _ := setupTest(t)
+	mux := http.NewServeMux()
+	// The admin middleware must not guard this route: a member edits their own profile.
+	denyAll := func(http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusForbidden) })
+	}
+	h.RegisterRoutes(mux, noopAuth, denyAll)
+	ctx := context.Background()
+
+	member, _ := users.Create(ctx, "Member", "m@t.com", "h")
+	member.Role = "member"
+	other, _ := users.Create(ctx, "Other", "o@t.com", "h")
+
+	w := putUser(t, mux, member, member.ID, `{"avatar_url":"data:image/png;base64,AAAA"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("own avatar: status %d, body: %s", w.Code, w.Body.String())
+	}
+	got, _ := users.GetByID(ctx, member.ID)
+	if got.AvatarURL != "data:image/png;base64,AAAA" {
+		t.Errorf("avatar not saved: %q", got.AvatarURL)
+	}
+
+	if w := putUser(t, mux, member, other.ID, `{"avatar_url":""}`); w.Code != http.StatusForbidden {
+		t.Errorf("member editing someone else: want 403, got %d", w.Code)
+	}
+	if w := putUser(t, mux, member, member.ID, `{"role":"member"}`); w.Code != http.StatusForbidden {
+		t.Errorf("changing own role: want 403, got %d", w.Code)
+	}
+}
+
+func TestUpdateUserAdminEditsOthers(t *testing.T) {
+	h, users, _ := setupTest(t)
+	mux := http.NewServeMux()
+	h.RegisterRoutes(mux, noopAuth, noopAuth)
+	ctx := context.Background()
+
+	admin, _ := users.Create(ctx, "Admin", "a@t.com", "h")
+	admin.Role = "admin"
+	other, _ := users.Create(ctx, "Other", "o@t.com", "h")
+
+	if w := putUser(t, mux, admin, other.ID, `{"role":"viewer","avatar_url":"x"}`); w.Code != http.StatusOK {
+		t.Fatalf("admin editing a member: status %d, body: %s", w.Code, w.Body.String())
+	}
+	got, _ := users.GetByID(ctx, other.ID)
+	if got.Role != "viewer" || got.AvatarURL != "x" {
+		t.Errorf("not updated: role %q avatar %q", got.Role, got.AvatarURL)
+	}
+}

@@ -106,6 +106,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let _userModalBotMode = false;
 
+// Nobody can change their own role, so the role field is hidden when you edit yourself.
+function _showUserRoleField(show) {
+  const group = document.getElementById('create-user-role').closest('.form-group');
+  if (group) group.style.display = show ? '' : 'none';
+}
+
+// Email and password are disabled for bots; give them back to people.
+function _enableUserCredentialFields() {
+  for (const id of ['create-user-email', 'create-user-password']) {
+    const el = document.getElementById(id);
+    el.disabled = false;
+    el.style.opacity = '';
+  }
+  document.getElementById('create-user-email').placeholder = 'name@example.com';
+  const botNotice = document.getElementById('user-modal-bot-notice');
+  if (botNotice) botNotice.style.display = 'none';
+}
+
 function openCreateUserModal() {
   _userModalEditId = null;
   _userModalBotMode = false;
@@ -122,6 +140,7 @@ function openCreateUserModal() {
   document.getElementById('user-modal-delete').classList.add('hidden');
   const botNotice = document.getElementById('user-modal-bot-notice');
   if (botNotice) botNotice.style.display = 'none';
+  _showUserRoleField(true);
   _initUserRoleDropdown('member');
   _initAvatarPicker('');
   document.getElementById('create-user-modal').classList.add('active');
@@ -154,6 +173,7 @@ function openCreateBotModal() {
     form.insertBefore(botNotice, form.firstChild);
   }
   botNotice.style.display = '';
+  _showUserRoleField(true);
   _initUserRoleDropdown('member');
   _initAvatarPicker('');
   document.getElementById('create-user-modal').classList.add('active');
@@ -162,6 +182,8 @@ function openCreateBotModal() {
 
 function openEditUserModal(user) {
   _userModalEditId = user.id;
+  _userModalBotMode = false;
+  _enableUserCredentialFields();
   document.getElementById('user-modal-title').textContent = user.name;
   document.getElementById('create-user-name').value = user.name;
   document.getElementById('create-user-email').value = user.email;
@@ -172,6 +194,7 @@ function openEditUserModal(user) {
   const isMe = me && me.id === user.id;
   const deleteBtn = document.getElementById('user-modal-delete');
   deleteBtn.classList.toggle('hidden', isMe || user.role === 'owner');
+  _showUserRoleField(!isMe);
   _initUserRoleDropdown(user.role === 'owner' ? 'admin' : user.role);
   _initAvatarPicker(user.avatar_url || '');
   document.getElementById('create-user-modal').classList.add('active');
@@ -194,12 +217,26 @@ function openEditBotModal(bot) {
   document.getElementById('user-modal-submit').textContent = 'Save';
   const deleteBtn = document.getElementById('user-modal-delete');
   deleteBtn.classList.remove('hidden');
+  _showUserRoleField(true);
   _initUserRoleDropdown(bot.role === 'owner' ? 'admin' : bot.role);
   _initAvatarPicker('');
   const botNotice = document.getElementById('user-modal-bot-notice');
   if (botNotice) botNotice.style.display = '';
   document.getElementById('create-user-modal').classList.add('active');
   setTimeout(() => document.getElementById('create-user-name').focus(), 100);
+}
+
+// Avatar menu > Profile: edit your own user over whatever page is showing.
+async function openProfile() {
+  const me = window.Auth.getUser && window.Auth.getUser();
+  if (!me) return;
+  try {
+    const users = await window.API.listUsers();
+    const user = (users || []).find(u => u.id === me.id);
+    if (user) openEditUserModal(user);
+  } catch (e) {
+    window.Toast.error(e.message || 'Failed to load your profile');
+  }
 }
 
 function closeCreateUserModal() {
@@ -219,7 +256,9 @@ async function submitUserModal() {
   if (_userModalEditId) {
     // Edit mode
     try {
-      await window.API.updateUserRole(_userModalEditId, role);
+      const me = window.Auth.getUser && window.Auth.getUser();
+      const isMe = me && me.id === _userModalEditId;
+      if (!isMe) await window.API.updateUserRole(_userModalEditId, role);
       if (avatarUrl !== undefined) {
         await window.API.updateUserAvatar(_userModalEditId, avatarUrl);
       }
@@ -2864,6 +2903,7 @@ window.openCreateUserModal = openCreateUserModal;
 window.openCreateBotModal = openCreateBotModal;
 window.openEditBotModal = openEditBotModal;
 window.openEditUserModal = openEditUserModal;
+window.openProfile = openProfile;
 window.closeCreateUserModal = closeCreateUserModal;
 window.submitUserModal = submitUserModal;
 window.deleteUserFromModal = deleteUserFromModal;

@@ -69,7 +69,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMW, adminMW func(http.H
 	mux.Handle("GET /api/v1/keys/{id}/reveal", authMW(http.HandlerFunc(h.RevealKey)))
 	mux.Handle("DELETE /api/v1/keys/{id}", adminMW(http.HandlerFunc(h.DeleteKey)))
 	mux.Handle("POST /api/v1/users", adminMW(http.HandlerFunc(h.CreateUser)))
-	mux.Handle("PUT /api/v1/users/{id}", adminMW(http.HandlerFunc(h.UpdateUser)))
+	// Any user may update their own avatar; changing someone else needs admin (checked in UpdateUser).
+	mux.Handle("PUT /api/v1/users/{id}", authMW(http.HandlerFunc(h.UpdateUser)))
 	mux.Handle("DELETE /api/v1/users/{id}", adminMW(http.HandlerFunc(h.DeleteUser)))
 	mux.Handle("POST /api/v1/bots", adminMW(http.HandlerFunc(h.CreateBot)))
 }
@@ -290,6 +291,15 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	currentUser := auth.UserFromContext(r.Context())
 	targetID := r.PathValue("id")
+
+	if currentUser == nil {
+		writeErr(w, http.StatusUnauthorized, "not authenticated")
+		return
+	}
+	if targetID != currentUser.ID && auth.RoleLevel(currentUser.Role) < auth.RoleLevel("admin") {
+		writeErr(w, http.StatusForbidden, "insufficient permissions")
+		return
+	}
 
 	var body struct {
 		Role      *string `json:"role"`
