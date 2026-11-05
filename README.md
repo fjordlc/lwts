@@ -38,7 +38,7 @@
 <p align="center">
   <img src="docs/img/sc-phone-1.png" alt="The board on a phone, with column tabs and the bottom bar" width="24%" />
   <img src="docs/img/sc-phone-2.png" alt="The Filter sheet on a phone" width="24%" />
-  <img src="docs/img/sc-phone-3.png" alt="Settings > Team on a phone" width="24%" />
+  <img src="docs/img/sc-phone-3.png" alt="Settings in the sheet on a phone" width="24%" />
 </p>
 
 ---
