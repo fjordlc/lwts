@@ -94,6 +94,7 @@ branch so it can be taken on its own (branches marked *builds on* need the one t
 | **Filters per board** — the assignee, priority, type and custom field filters are remembered per user and board and come back when the board is opened again | `feat/persist-filters` (builds on `feat/custom-field-filters`) |
 | **Card properties** — a Properties button chooses what the cards show (type, priority, assignee, points, due date, key, each custom field) and, in the list view, which columns show; remembered per user, board and view. The grouped property is not repeated on the cards, and what the Appearance settings turn off stays off | `feat/card-properties` (builds on `feat/persist-filters`) |
 | **Add-card rows** — every column and lane cell ends in an "Add card" row that adds the card right there (its column, epic or Group by value); an epic without cards keeps its cells so cards can be added or dragged in; the whole column or cell takes a drop; phones get a round New card button for the open tab's column | `feat/add-card-rows` (builds on `feat/card-properties`) |
+| **Personal preferences** — the server keeps a small set of preferences for each user (`GET`/`PUT /api/v1/me/preferences`, merged key by key, `null` removes a key), which every role can change for itself, unlike the admin-only workspace settings | `feat/user-preferences` (builds on `feat/add-card-rows`) |
 
 ## Quick Start
 
@@ -295,6 +296,8 @@ GET    /api/v1/boards/:id/webhooks/:id/deliveries # Delivery logs
 GET    /api/v1/search?q=term        # Full-text search
 GET    /api/v1/settings/general     # Get settings
 PUT    /api/v1/settings/general     # Update settings
+GET    /api/v1/me/preferences       # Your own preferences
+PUT    /api/v1/me/preferences       # Merge into your preferences (null removes a key)
 GET    /api/v1/keys                 # List API keys
 POST   /api/v1/keys                 # Create API key
 DELETE /api/v1/keys/:id             # Revoke API key

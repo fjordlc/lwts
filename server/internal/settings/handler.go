@@ -28,10 +28,11 @@ type Handler struct {
 	seedFunc      SeedFunc
 	lambdaDemo    bool
 	semanticAvail SemanticSearchAvailability
+	prefs         *repo.PreferenceRepository
 }
 
 func NewHandler(ds db.Datasource, users *repo.UserRepository, boards *repo.BoardRepository, cards *repo.CardRepository, comments *repo.CommentRepository) *Handler {
-	return &Handler{ds: ds, users: users, boards: boards, cards: cards, comments: comments}
+	return &Handler{ds: ds, users: users, boards: boards, cards: cards, comments: comments, prefs: repo.NewPreferenceRepository(ds)}
 }
 
 // SetSeedFunc sets the function used to seed demo data on reset.
@@ -57,6 +58,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, authMW, adminMW func(http.H
 	mux.HandleFunc("GET /api/v1/registration-status", h.RegistrationStatus)
 	mux.Handle("GET /api/v1/settings/{category}", authMW(http.HandlerFunc(h.GetSettings)))
 	mux.Handle("PUT /api/v1/settings/{category}", authMW(http.HandlerFunc(h.PutSettings)))
+	mux.Handle("GET /api/v1/me/preferences", authMW(http.HandlerFunc(h.GetPreferences)))
+	mux.Handle("PUT /api/v1/me/preferences", authMW(http.HandlerFunc(h.PutPreferences)))
 	mux.Handle("POST /api/v1/settings/clear-cards", adminMW(http.HandlerFunc(h.ClearAllCards)))
 	mux.Handle("POST /api/v1/settings/reset", adminMW(http.HandlerFunc(h.ResetWorkspace)))
 	mux.HandleFunc("GET /api/v1/workspace-status", h.WorkspaceStatus)

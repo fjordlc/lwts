@@ -105,6 +105,10 @@ const API = {
 
   getSettings(category)      { return this.get('/api/v1/settings/' + category); },
   putSettings(category, data) { return this.put('/api/v1/settings/' + category, data); },
+  // Personal preferences of the signed-in user (default board, toggles). The PUT body is merged:
+  // each key replaces the stored value and a key set to null is removed; it returns the whole object.
+  getPreferences()           { return this.get('/api/v1/me/preferences'); },
+  putPreferences(patch)      { return this.put('/api/v1/me/preferences', patch); },
   updateUserRole(id, role)   { return this.put('/api/v1/users/' + id, { role }); },
   updateUserAvatar(id, avatarUrl) { return this.put('/api/v1/users/' + id, { avatar_url: avatarUrl }); },
   deleteUser(id)             { return this.del('/api/v1/users/' + id); },
