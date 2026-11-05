@@ -663,39 +663,14 @@
   }
 }
 
-/* ── Add-card rows and the "New card" button on phones ── */
+/* ── Add-card rows on phones ── */
 @media (max-width: 768px) {
   .column.mobile-active { flex: 0 0 auto; }
   .column-add-card { margin-bottom: 0; }
   .epic-lane-cell .column-add-card { margin: 4px 8px 8px; }
   .epic-lane-cell > .column-body:not(:has(.card)) { padding-top: 6px; padding-bottom: 0; }
-  /* room to scroll the last row out from under the button */
+  /* room to scroll the last row out from under the bottom navigation */
   .board::after { content: ''; flex: 0 0 96px; }
-  .new-card-fab {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: fixed;
-    right: 18px;
-    bottom: calc(18px + env(safe-area-inset-bottom));
-    z-index: 40;
-    width: 56px;
-    height: 56px;
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    background: var(--accent, #3b82f6);
-    color: #fff;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
-    cursor: pointer;
-    transition: transform 0.2s, opacity 0.2s;
-  }
-  .new-card-fab:active { transform: scale(0.94); }
-  .new-card-fab svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 2.5; }
-  /* only on the board and the list, and out of the way while a form is open */
-  body:has(#app-board[style*="none"]) .new-card-fab,
-  body:has(.settings-page.active) .new-card-fab { display: none; }
-  body:has(.lwts-modal-overlay.active) .new-card-fab { transform: scale(0); opacity: 0; pointer-events: none; }
   /* the list's epic headers: title, then the count at the end */
   .list-epic-header { display: block; }
   .list-epic-header td { display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; }
@@ -823,4 +798,196 @@
   }
   .settings-add-row:active { background: var(--surface-hover); }
   .settings-add-row svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+}
+
+/* ── Phones: bottom navigation and its sheets (mobilenav.js) ── */
+@media (max-width: 768px) {
+  .mobile-nav {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1500;
+    background: var(--surface-dropdown);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border-light);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
+  }
+  /* only on the board and the list, and out of the way while a form is open */
+  body:has(#app-board[style*="none"]) :is(.mobile-nav, .mobile-sheet-backdrop),
+  body:has(.settings-page.active) :is(.mobile-nav, .mobile-sheet-backdrop),
+  body:has(.lwts-modal-overlay.active) :is(.mobile-nav, .mobile-sheet-backdrop) { display: none; }
+  .mobile-sheet-backdrop:not([hidden]) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1499;
+    background: rgba(0, 0, 0, 0.4);
+  }
+  /* the bar takes over the filter row, the account avatar and the round New card button */
+  #filter-bar,
+  body:not(:has(.settings-page.active)) #header-user-menu { display: none; }
+  #app-board { padding-bottom: calc(68px + env(safe-area-inset-bottom)); box-sizing: border-box; }
+
+  .mobile-nav-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    height: 60px;
+    padding: 0 4px env(safe-area-inset-bottom);
+    box-sizing: content-box;
+  }
+  .mobile-nav-btn {
+    position: relative;
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text-dimmed);
+    font: inherit;
+    font-size: 0.66rem;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-nav-btn.active { color: var(--accent, #3b82f6); }
+  .mobile-nav-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .mobile-nav-dot {
+    display: none;
+    position: absolute;
+    top: 10px;
+    left: calc(50% + 6px);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent, #3b82f6);
+  }
+  .mobile-nav-btn.has-filters .mobile-nav-dot { display: block; }
+  .mobile-nav-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    box-sizing: border-box;
+    overflow: hidden;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    font-size: 0.6rem;
+    font-weight: 600;
+  }
+  .mobile-nav-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .mobile-nav-btn.active .mobile-nav-avatar { border-color: var(--accent, #3b82f6) !important; }
+  .mobile-nav-bar > .new-card-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 50px;
+    width: 50px;
+    height: 50px;
+    margin: -22px 8px 0;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--accent, #3b82f6);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .mobile-nav-bar > .new-card-fab:active { transform: scale(0.94); }
+  .mobile-nav-bar > .new-card-fab svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2.5; }
+
+  .mobile-sheet:not([hidden]) { display: block; }
+  .mobile-sheet-body {
+    max-height: min(68dvh, 560px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 12px 12px 6px;
+    box-sizing: border-box;
+  }
+  /* collapsible sections, one per menu */
+  .mobile-sheet-section-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 44px;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.95rem;
+    text-align: left;
+    cursor: pointer;
+  }
+  .mobile-sheet-section-head:active { background: var(--surface-hover); }
+  .mobile-sheet-section-head svg { flex: none; margin-left: -4px; color: var(--text-dimmed); transform: rotate(-90deg); transition: transform 0.2s; }
+  .mobile-sheet-section.open > .mobile-sheet-section-head svg { transform: none; }
+  .mobile-sheet-section-title { flex: none; font-weight: 600; }
+  .mobile-sheet-section-value {
+    flex: 1;
+    min-width: 0;
+    margin-left: 4px;
+    overflow: hidden;
+    color: var(--text-dimmed);
+    font-size: 0.85rem;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mobile-sheet-section-value.set { color: var(--accent, #3b82f6); font-weight: 500; }
+  .mobile-sheet-section.open .mobile-sheet-section-value { display: none; }
+  .mobile-sheet-section-body { display: none; padding: 0 0 6px 8px; }
+  .mobile-sheet-section.open > .mobile-sheet-section-body { display: block; }
+  /* the menus lent to a sheet lie flat in it */
+  .mobile-sheet-body .filter-menu,
+  .mobile-sheet-body .filter-menu.hidden,
+  .mobile-sheet-body .header-user-dropdown {
+    display: block;
+    position: static;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    animation: none;
+  }
+  .mobile-sheet-body .filter-menu-title { display: none; }
+  .mobile-sheet-body :is(.filter-checkbox-item, .header-user-item) { min-height: 44px; box-sizing: border-box; font-size: 0.95rem; }
+  .mobile-sheet-body .header-user-dropdown .mobile-only-item { display: none; }
+  .mobile-sheet-body > .header-search-wrap { margin-bottom: 6px; }
+  .mobile-sheet-body > .header-search-wrap .header-search-input {
+    width: 100% !important;
+    max-width: none;
+    height: 42px;
+    font-size: 16px;
+  }
+  .mobile-sheet-body > .header-search-wrap .header-search-results {
+    position: absolute;
+    left: 0;
+    right: 0;
+    width: auto;
+    max-height: 50dvh;
+  }
+  .mobile-sheet-body > .view-switcher { display: flex; margin-bottom: 6px; height: 42px; }
+  .mobile-sheet-body > .view-switcher .view-switcher-btn { flex: 1; height: 100%; }
+  .mobile-sheet-boards .header-board-option { min-height: 44px; padding: 8px 10px; box-sizing: border-box; border-radius: 10px; font-size: 0.95rem; }
 }

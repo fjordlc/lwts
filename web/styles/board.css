@@ -2002,5 +2002,5 @@ body.hide-avatars .card .card-title { margin-right: 0; }
 @media (min-width: 769px) {
   .epic-lane + .epic-lane { margin-top: 14px; }
 }
-/* The round "New card" button is for phones (see responsive.css). */
-.new-card-fab { display: none; }
+/* The bottom navigation (with its round "New card" button) is for phones (see responsive.css). */
+.new-card-fab, .mobile-nav, .mobile-sheet-backdrop { display: none; }

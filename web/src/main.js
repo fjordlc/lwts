@@ -15,6 +15,7 @@ import './settings.js';
 import './listview.js';
 import './features.js';
 import './sidepane.js';
+import './mobilenav.js';
 import './subtasks.js';
 import './a11y.js';
 import './plugins.js';

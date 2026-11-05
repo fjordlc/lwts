@@ -142,6 +142,8 @@ function renderBoardPicker() {
     closeMenu: () => { if (typeof window.closeBoardPicker === 'function') window.closeBoardPicker(); },
   });
 
+  if (typeof window.refreshBoardsSheet === 'function') window.refreshBoardsSheet();
+
   // Update label
   const current = window.boardList.find(b => b.id === window.currentBoardId);
   const label = document.getElementById('board-picker-label');
@@ -549,6 +551,7 @@ function moveHeaderControlsIntoFilterBar(bar) {
     const input = document.getElementById('header-search');
     if (input) {
       input.addEventListener('input', fitFilterBarSearch);
+      input.addEventListener('input', syncFilterIndicator);
       input.addEventListener('focusout', () => setTimeout(closeFilterBarSearchIfIdle, 150));
     }
     const clear = document.getElementById('header-search-clear');
@@ -736,11 +739,7 @@ function toggleFilterDropdown(type) {
   document.querySelectorAll('.filter-menu').forEach(m => m.classList.add('hidden'));
 
   if (!wasHidden) return;
-  if (type === 'column') buildColumnFilterMenu();
-  if (type === 'epic') buildEpicFilterMenu();
-  if (type === 'sort') buildCardSortMenu();
-  if (type === 'group') buildGroupByMenu();
-  if (type === 'props') buildCardPropsMenu();
+  buildFilterMenu(type);
   // Menus open next to their button again after a phone has lifted them out.
   const wrap = document.getElementById(`filter-${type}-wrap`);
   if (wrap && menu.parentNode !== wrap) {
@@ -750,6 +749,97 @@ function toggleFilterDropdown(type) {
   }
   menu.classList.remove('hidden');
   if (isNarrowScreen()) liftFilterMenu(menu);
+}
+
+// Fills the menus that are drawn when they open (the others are kept up to date).
+function buildFilterMenu(type) {
+  if (type === 'column') buildColumnFilterMenu();
+  if (type === 'epic') buildEpicFilterMenu();
+  if (type === 'sort') buildCardSortMenu();
+  if (type === 'group') buildGroupByMenu();
+  if (type === 'props') buildCardPropsMenu();
+}
+
+// The phone sheets (mobilenav.js) show these same menus, in this order.
+function filterMenusFor(sheet) {
+  const shown = (type) => {
+    const wrap = document.getElementById(`filter-${type}-wrap`);
+    return !!wrap && wrap.style.display !== 'none';
+  };
+  if (sheet === 'filter') {
+    const list = [
+      { type: 'assignee', title: 'Assignee' },
+      { type: 'priority', title: 'Priority' },
+      { type: 'tag', title: 'Type' },
+    ];
+    _customFilterFields().forEach(f => list.push({ type: 'cf-' + f.id, title: f.name }));
+    list.push({ type: 'column', title: 'Status' }, { type: 'epic', title: 'Epic' });
+    return list.filter(m => shown(m.type));
+  }
+  if (sheet === 'view') {
+    return [
+      { type: 'sort', title: 'Sort', single: true },
+      { type: 'group', title: 'Group by', single: true },
+      { type: 'props', title: window.currentView === 'list' ? 'List columns' : 'Properties' },
+      { type: 'density', title: 'Density', single: true },
+    ].filter(m => shown(m.type));
+  }
+  return [];
+}
+
+// A short summary of a menu's choice for the phone sheets: { text, set }.
+function filterMenuSummary(type) {
+  const picked = (values, menuId) => {
+    if (!values.length) return { text: 'Any', set: false };
+    const labels = values.map(v => {
+      const box = Array.from(document.querySelectorAll(`#${menuId} input[type="checkbox"]`)).find(b => b.value === v);
+      const item = box && box.closest('.filter-checkbox-item');
+      return (item && item.dataset.label) || v;
+    });
+    return { text: labels.length <= 2 ? labels.join(', ') : labels.length + ' selected', set: true };
+  };
+  const shownOf = (hidden, total) => (hidden ? { text: (total - hidden) + ' of ' + total, set: true } : { text: 'All', set: false });
+  if (type === 'assignee') return picked(activeFilters.assignees, 'filter-assignee-menu');
+  if (type === 'priority') return picked(activeFilters.priorities, 'filter-priority-menu');
+  if (type === 'tag') return picked(activeFilters.tags, 'filter-tag-menu');
+  if (type.startsWith('cf-')) return picked((activeFilters.custom || {})[type.slice(3)] || [], `filter-${type}-menu`);
+  if (type === 'column') return shownOf(currentHiddenColumns().size, (window.COLUMNS || []).length);
+  if (type === 'epic') {
+    const ids = new Set(['', ...boardEpics().map(e => e.id)]);
+    return shownOf([...currentHiddenEpics()].filter(id => ids.has(id)).length, ids.size);
+  }
+  if (type === 'sort' && typeof window.getCardSort === 'function') {
+    const sort = window.getCardSort();
+    const option = (window.CARD_SORT_OPTIONS || []).find(o => o.key === sort.key);
+    const manual = sort.key === 'manual';
+    return { text: option ? option.label + (manual ? '' : sort.dir === 'asc' ? ' \u2191' : ' \u2193') : '', set: !manual };
+  }
+  if (type === 'group' && typeof window.currentGroupBy === 'function') {
+    const mode = window.currentGroupBy();
+    return { text: window.groupByLabel(mode), set: mode !== window.defaultGroupBy() };
+  }
+  if (type === 'props' && typeof window.hiddenCardProperties === 'function') {
+    const hidden = window.hiddenCardProperties().size;
+    return { text: hidden ? hidden + ' hidden' : 'All', set: hidden > 0 };
+  }
+  if (type === 'density') {
+    const density = getCurrentDensity();
+    return { text: DENSITY_LABELS[density], set: density !== 'default' };
+  }
+  return { text: '', set: false };
+}
+
+// Whether anything narrows the board: card filters, search, hidden columns or epic lanes.
+// The phone navigation's Filter button shows a dot then.
+function syncFilterIndicator() {
+  const btn = document.getElementById('mobile-nav-filter');
+  if (!btn) return;
+  const search = document.getElementById('header-search');
+  const epicWrap = document.getElementById('filter-epic-wrap');
+  const on = activeFilterCount() > 0 || !!(search && search.value.trim()) ||
+    currentHiddenColumns().size > 0 ||
+    (!!epicWrap && epicWrap.style.display !== 'none' && filterMenuSummary('epic').set);
+  btn.classList.toggle('has-filters', on);
 }
 
 // On phones the filter row scrolls sideways and so clips anything inside it:
@@ -1153,6 +1243,7 @@ function applyColumnVisibility() {
     if (first) window.switchMobileTab(first.dataset.col);
   }
   syncFilterBarToColumns();
+  syncFilterIndicator();
 }
 
 // ── Epic filter ──
@@ -1273,6 +1364,7 @@ function applyEpicLaneVisibility() {
   }
   const btn = document.querySelector('#filter-epic-wrap .filter-btn');
   if (btn) btn.classList.toggle('filter-btn-active', hidden.size > 0);
+  syncFilterIndicator();
 }
 
 function _onlyEpicTypeFilter() {
@@ -1407,6 +1499,8 @@ function applyFilters() {
 
     rowEl.style.display = visible ? '' : 'none';
   });
+
+  syncFilterIndicator();
 
   // Update badges
   updateFilterBadge('assignee', activeFilters.assignees.length);
@@ -2175,6 +2269,10 @@ window.chooseCardSort = chooseCardSort;
 window.initDensityToggleLabel = initDensityToggleLabel;
 window.buildFilterCheckboxes = buildFilterCheckboxes;
 window.toggleFilterDropdown = toggleFilterDropdown;
+window.buildFilterMenu = buildFilterMenu;
+window.filterMenusFor = filterMenusFor;
+window.filterMenuSummary = filterMenuSummary;
+window.syncFilterIndicator = syncFilterIndicator;
 window.openFilterBarSearch = openFilterBarSearch;
 window.isColumnHidden = isColumnHidden;
 window.hiddenEpicLaneTest = hiddenEpicLaneTest;

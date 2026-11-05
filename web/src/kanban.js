@@ -3033,6 +3033,11 @@ function copyCardLink() {
 // ═══════════════════════════════════════════════════════════════
 
 function toggleBoardPicker() {
+  // With the phone navigation the boards open in its sheet instead
+  if (typeof window.isMobileNavShown === 'function' && window.isMobileNavShown()) {
+    window.openMobileSheet('boards');
+    return;
+  }
   const menu = document.getElementById('board-menu');
   const picker = document.getElementById('board-picker');
   const isHidden = menu.classList.contains('hidden');
@@ -3606,6 +3611,7 @@ function clearGlobalSearch() {
   input.value = '';
   document.getElementById('header-search-clear').classList.add('hidden');
   hideSearchResults();
+  if (typeof window.syncFilterIndicator === 'function') window.syncFilterIndicator();
   const board = document.getElementById('board');
   if (board && board.style.display !== 'none') {
     filterCardsInline('');
@@ -3641,6 +3647,13 @@ function initUserMenu() {
       ? `<img src="${u.avatar_url}" style="width:32px;height:32px;border-radius:50%;object-fit:cover">`
       : `<div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:600;background:${color}30;color:${color};border:2px solid ${color}40;text-transform:uppercase">${u.initials || '?'}</div>`;
     infoRow.innerHTML = `${miniAvatar}<div><div class="header-user-info-name">${currentUser.name || ''}</div><div class="header-user-info-email">${currentUser.email || ''}</div></div>`;
+  }
+
+  // The phone navigation's Account button shows the same avatar
+  const navAvatar = document.getElementById('mobile-nav-avatar');
+  if (navAvatar) {
+    navAvatar.innerHTML = avatar.innerHTML;
+    ['background', 'color', 'borderColor'].forEach(p => { navAvatar.style[p] = avatar.style[p]; });
   }
 
   // Update theme label
