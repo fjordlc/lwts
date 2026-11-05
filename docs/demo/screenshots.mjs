@@ -44,8 +44,9 @@ await page.evaluate(() => { const body = document.querySelector('#detail-modal .
 await page.mouse.move(5, 5);
 await shot('sc-3.png');
 
-// Phone screenshots: the board with the bottom bar, the Filter sheet, and settings in the sheet
-const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, colorScheme: 'dark' });
+// Phone screenshots at the size of an iPhone 8 (375×667), exported at 3× for sharpness: the board with the
+// bottom bar, the Filter sheet, and settings in the sheet
+const phone = await browser.newContext({ viewport: { width: 375, height: 667 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, colorScheme: 'dark' });
 const mobile = await phone.newPage();
 const phoneShot = async (name) => { await mobile.waitForTimeout(700); await mobile.screenshot({ path: out + name }); console.log('saved', out + name); };
 await mobile.goto(base + '/');
