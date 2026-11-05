@@ -59,6 +59,59 @@
 - **Multi-arch Docker** — `linux/amd64` and `linux/arm64` images
 - **AWS Lambda support** — deploy as a serverless function with Lambda Web Adapter
 
+## Additions in this fork
+
+Everything below works with the standard LWTS server; no extra services are needed. Each addition lives on its own
+branch so it can be taken on its own (branches marked *builds on* need the one they name).
+
+### Fixes
+
+| Fix | Branch |
+|---|---|
+| Opening a card (browser Back/Forward, a `#KEY` link) while the new-card form is open no longer loads it into the form or saves a copy | `fix/reopen-card-while-creating` |
+| The due date picker stays inside the window instead of running off the bottom | `fix/due-date-picker-placement` |
+| The status list in a card follows the current board's columns | `fix/status-options-per-board` |
+| The search box keeps filtering when the board or the list is drawn again (a live update, a sort, the next page of the list), and works together with the filter menus instead of bringing back cards they hide | `fix/search-after-redraw` (builds on `feat/card-key-tagline`) — *branch coming soon* |
+| **Editor and profile polish** — the description and comment editors grow with their text and keep the column's edge, with Save/Cancel on the right; Profile in the avatar menu edits your own avatar from any page (members too), and a new avatar shows at once | `fix/dropzone-and-editor-polish` |
+| **Phones and iOS Safari** — column tabs open at the top, show filtered counts and stay off the list view and settings; cards no longer appear late; the board menu spans the screen and pushes the page down; card sidebar menus are no longer cut off; text fields stop iOS from zooming in | `fix/mobile-safari` |
+
+### Features
+
+| Feature | Branch |
+|---|---|
+| **Side pane** — on wide screens a card opens in a resizable pane next to the board, which stays usable | `feat/card-side-pane` |
+| **New card on the board** — while a new card is being written it already shows on the board; closing the form saves it, Discard drops it | `feat/new-card-draft` |
+| **Epic in the new-card form** — pick the epic while creating a card | `feat/epic-in-new-card-form` |
+| **Epic as key and title** — the Epic field shows "ALP-9 Faster onboarding" instead of just the key | `feat/epic-key-and-title` |
+| **Type in the card header** — "ALP-12 / Bug", one row less in the sidebar | `feat/type-in-card-header` |
+| **New-card presets** — `openCreateModal(preset)` opens the form with a column, epic or other value already chosen | `feat/new-card-preset` |
+| **Dropdown search hardening** — password managers stay away from the dropdown search box | `feat/dropdown-search-hardening` |
+| **Filter row layout** — search, filters, density and the board/list switch share one row above the board; search is one column wide on wide screens and an icon on phones, where the row scrolls and the board name gets room in the header | `feat/filter-bar-layout` |
+| **Status filter** — choose which columns show on the board, the phone tabs and the list view, remembered per board; the phone tabs follow the open board's columns | `feat/status-filter` (builds on `feat/filter-bar-layout`) |
+| **Epic filter** — choose which epic swimlanes (and the lane without epic) show on the board and in the list view, remembered per board; a card moves to its new epic's lane as soon as the epic is picked | `feat/epic-lane-filter` (builds on `feat/status-filter`) |
+| **Sort cards** — a Sort button orders each column (and the list) by priority, title, key, last updated or created, or keeps the manual drag order, without changing the stored order; each board remembers its sort, board/list view and density | `feat/sort-cards` (builds on `feat/epic-lane-filter`) |
+| **Group by** — show the board in swimlanes by epic (the default on boards with epics), type, priority, assignee or a choice custom field switched on with "Add to Group by", or in plain columns; dragging a card into another lane sets that value; remembered per user and board | `feat/group-by` (builds on `feat/sort-cards`) |
+| **Custom field filters** — one filter menu per choice custom field of the open board, next to Type, with a "No <field>" choice; works on the board and in the list view | `feat/custom-field-filters` (builds on `feat/group-by`) |
+| **Filters per board** — the assignee, priority, type and custom field filters are remembered per user and board and come back when the board is opened again | `feat/persist-filters` (builds on `feat/custom-field-filters`) |
+| **Card properties** — a Properties button chooses what the cards show (type, priority, assignee, points, due date, key, each custom field) and, in the list view, which columns show; remembered per user, board and view. The grouped property is not repeated on the cards, and what the Appearance settings turn off stays off | `feat/card-properties` (builds on `feat/persist-filters`) |
+| **Add-card rows** — every column and lane cell ends in an "Add card" row that adds the card right there (its column, epic or Group by value); an epic without cards keeps its cells so cards can be added or dragged in; the whole column or cell takes a drop; phones get a round New card button for the open tab's column | `feat/add-card-rows` (builds on `feat/card-properties`) |
+| **Personal preferences** — the server keeps a small set of preferences for each user (`GET`/`PUT /api/v1/me/preferences`, merged key by key, `null` removes a key), which every role can change for itself, unlike the admin-only workspace settings | `feat/user-preferences` (builds on `feat/add-card-rows`) |
+| **Default board, delete board, Clear done and presence switches** — each user picks the board LWTS opens with (a star in the board picker or Settings > Boards) and it opens straight away, without passing through another board; Delete board (after a confirmation) is offered only to those who may delete the board, never on your default board; per board you can hide the Clear done button, and Settings > Team can hide the team presence avatars. These are personal choices, open to every role | `feat/default-board-and-clear-done` (builds on `feat/user-preferences`) |
+| **Board members** — a board can be limited to some people, each with a board role (owner, admin, member, viewer; viewers only read). Only its members and workspace owners and admins can open it; for everyone else the board, its cards, comments, search results and event stream do not exist. Boards without members stay open to the whole workspace as before. Manage members from the board's header button (a side pane, a modal on phones) or by board or by member in Settings > Team; the assignee list offers only people who can open the board (`GET`/`PUT`/`DELETE /api/v1/boards/{id}/members[/{user}]`) | `feat/board-members` (builds on `feat/default-board-and-clear-done`) — *branch coming soon* |
+| **Settings on phones** — the settings menu becomes a narrow icon rail beside the page, which scrolls on its own; fields and menus go under their label at full width while switches stay beside it; board columns and trigger rows fit the screen; the team list shows each role as a small pill next to the name, with "Add member" and "Create bot" rows under the lists | `feat/mobile-settings-layout` (builds on `feat/board-members`) — *branch coming soon* |
+| **Bottom navigation on phones** — a bar at the bottom of the board and the list holds Boards, Filter, New card, View and Account; each opens a sheet above it with the same board picker, search box, filter menus (assignee, priority, type, custom fields, status, epic), view menus (board or list, sort, Group by, properties, density) and account menu as on wide screens, each filter showing its current choice. It takes the place of the filter row, the avatar menu and the round New card button, whose + sits in its middle; a dot on Filter shows that something is filtered | `feat/mobile-bottom-nav` (builds on `feat/mobile-settings-layout`) — *branch coming soon* |
+| **Install as an app** — LWTS can be added to the home screen or installed from the browser and opens in its own window, with the LWTS icon. A small service worker always loads the app from the server when it can reach it, so a new version shows on the next load, and keeps the last copy of the app (never your data or anything from the API) so it still opens without a connection. It works whether LWTS is served at the root or under a sub-path | `feat/pwa` (builds on `feat/mobile-bottom-nav`) — *branch coming soon* |
+
+### Optional
+
+Design variants that are off unless a user switches them on for themselves in Settings > Appearance > Your layout
+(kept in the personal preferences, so each person chooses). Each lives on its own branch.
+
+| Variant | Branch |
+|---|---|
+| **Key under the title** — the card key becomes a small line under the title and the type chip moves to the card footer's left side, with slightly tighter card spacing; the Properties and Appearance switches for key and type still apply | `feat/card-key-tagline` (builds on `feat/pwa`) — *branch coming soon* |
+| **Search in place** — typing in the search box only filters the open board or list, without the results list over the page; Enter or the down arrow opens the results from all boards when you want them | `feat/inline-search` (builds on `fix/search-after-redraw`) — *branch coming soon* |
+
 ## Quick Start
 
 ### Binary
@@ -259,6 +312,8 @@ GET    /api/v1/boards/:id/webhooks/:id/deliveries # Delivery logs
 GET    /api/v1/search?q=term        # Full-text search
 GET    /api/v1/settings/general     # Get settings
 PUT    /api/v1/settings/general     # Update settings
+GET    /api/v1/me/preferences       # Your own preferences
+PUT    /api/v1/me/preferences       # Merge into your preferences (null removes a key)
 GET    /api/v1/keys                 # List API keys
 POST   /api/v1/keys                 # Create API key
 DELETE /api/v1/keys/:id             # Revoke API key
@@ -449,3 +504,7 @@ cd tf && terraform apply
 ## License
 
 [MIT](LICENSE)
+
+## Development of this fork
+
+This fork is developed with the help of [Claude Code](https://claude.com/claude-code), Anthropic's AI coding tool. Every change is tested, and reviewed before it is published.
