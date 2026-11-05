@@ -427,6 +427,14 @@ function initFilterBar() {
         </button>
         <div class="filter-menu hidden" id="filter-tag-menu"></div>
       </div>
+      <div class="filter-dropdown" id="filter-column-wrap">
+        <button class="filter-btn" onclick="toggleFilterDropdown('column')" aria-label="Filter by status">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.8"/></svg>
+          Status
+          <span class="filter-badge" id="filter-column-badge"></span>
+        </button>
+        <div class="filter-menu hidden" id="filter-column-menu"></div>
+      </div>
       <div class="filter-status" id="filter-status"></div>
       <div class="filter-view-group" id="filter-view-group">
         <div class="filter-dropdown" id="filter-density-wrap">
@@ -665,6 +673,7 @@ function toggleFilterDropdown(type) {
   document.querySelectorAll('.filter-menu').forEach(m => m.classList.add('hidden'));
 
   if (!wasHidden) return;
+  if (type === 'column') buildColumnFilterMenu();
   // Menus open next to their button again after a phone has lifted them out.
   const wrap = document.getElementById(`filter-${type}-wrap`);
   if (wrap && menu.parentNode !== wrap) {
@@ -686,6 +695,125 @@ function liftFilterMenu(menu) {
   menu.classList.add('filter-menu-lifted');
   menu.style.top = (bottom + 4) + 'px';
   menu.style.maxHeight = `calc(100dvh - ${bottom + 16}px)`;
+}
+
+// ── Status filter ──
+// Which columns (statuses) show on the board, the phone tabs and the list
+// view. A view choice rather than a card filter: it is remembered per board in
+// this browser and "Clear all" leaves it alone. At least one column stays.
+
+const HIDDEN_COLUMNS_KEY = 'lwts-hidden-columns:';
+const _hiddenColumnsByBoard = {}; // also keeps the choice when storage is unavailable
+
+function _storedHiddenColumns(boardId) {
+  if (!(boardId in _hiddenColumnsByBoard)) {
+    let stored = [];
+    try { stored = JSON.parse(localStorage.getItem(HIDDEN_COLUMNS_KEY + boardId) || '[]'); } catch { stored = []; }
+    _hiddenColumnsByBoard[boardId] = Array.isArray(stored) ? stored : [];
+  }
+  return _hiddenColumnsByBoard[boardId];
+}
+
+// The current board's hidden columns that still exist; never all of them.
+function currentHiddenColumns() {
+  const ids = new Set((window.COLUMNS || []).map(c => c.id));
+  const hidden = new Set(_storedHiddenColumns(window.currentBoardId || '').filter(id => ids.has(id)));
+  return hidden.size >= ids.size ? new Set() : hidden;
+}
+
+function isColumnHidden(colId) {
+  return currentHiddenColumns().has(colId);
+}
+
+function setHiddenColumns(hidden) {
+  const boardId = window.currentBoardId || '';
+  _hiddenColumnsByBoard[boardId] = [...hidden];
+  try {
+    if (hidden.size) localStorage.setItem(HIDDEN_COLUMNS_KEY + boardId, JSON.stringify([...hidden]));
+    else localStorage.removeItem(HIDDEN_COLUMNS_KEY + boardId);
+  } catch { /* storage unavailable: the choice lasts until reload */ }
+  applyColumnVisibility();
+  if (window.currentView === 'list' && typeof window.renderListView === 'function') window.renderListView();
+  buildColumnFilterMenu();
+}
+
+function toggleColumnVisibility(colId, checkbox) {
+  const hidden = currentHiddenColumns();
+  if (hidden.has(colId)) {
+    hidden.delete(colId);
+  } else if ((window.COLUMNS || []).filter(c => !hidden.has(c.id)).length > 1) {
+    hidden.add(colId);
+  } else if (checkbox) {
+    checkbox.checked = true; // the last shown column stays
+    return;
+  }
+  setHiddenColumns(hidden);
+}
+
+function showAllColumns() {
+  setHiddenColumns(new Set());
+}
+
+function buildColumnFilterMenu() {
+  const menu = document.getElementById('filter-column-menu');
+  if (!menu) return;
+  const hidden = currentHiddenColumns();
+  menu.innerHTML = '';
+  const items = document.createElement('div');
+  items.className = 'filter-menu-items';
+  (window.COLUMNS || []).forEach((col, i) => {
+    const label = document.createElement('label');
+    label.className = 'filter-checkbox-item';
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.value = col.id;
+    box.checked = !hidden.has(col.id);
+    box.addEventListener('change', () => toggleColumnVisibility(col.id, box));
+    const dot = document.createElement('span');
+    dot.className = 'filter-column-dot';
+    dot.style.background = typeof window.columnColor === 'function' ? window.columnColor(col, i) : (col.color || '');
+    const name = document.createElement('span');
+    name.textContent = col.label;
+    label.append(box, dot, name);
+    items.appendChild(label);
+  });
+  menu.appendChild(items);
+  if (hidden.size) {
+    const all = document.createElement('button');
+    all.type = 'button';
+    all.className = 'filter-menu-action';
+    all.textContent = 'Show all';
+    all.addEventListener('click', showAllColumns);
+    menu.appendChild(all);
+  }
+}
+
+// Hides the columns' board cells (and their headers in the epic layout) and
+// phone tabs; the list view leaves their cards out when it renders.
+function applyColumnVisibility() {
+  const hidden = currentHiddenColumns();
+  const mark = (el, colId) => { if (el && colId !== undefined) el.classList.toggle('column-hidden', hidden.has(colId)); };
+  document.querySelectorAll('#board .column').forEach(col => mark(col, col.querySelector('.column-body')?.dataset.col));
+  document.querySelectorAll('#board .epic-lane-cell').forEach(cell => mark(cell, cell.querySelector('.column-body')?.dataset.col));
+  document.querySelectorAll('#board .board-column-headers .column-header').forEach(h => mark(h, h.querySelector('.column-dot')?.dataset.col));
+  document.querySelectorAll('.mobile-tab[data-col]').forEach(t => mark(t, t.dataset.col));
+
+  const shown = (window.COLUMNS || []).filter(c => !hidden.has(c.id)).length;
+  const badge = document.getElementById('filter-column-badge');
+  if (badge) {
+    badge.textContent = hidden.size ? shown : '';
+    badge.style.display = hidden.size ? 'inline-flex' : 'none';
+  }
+  const btn = document.querySelector('#filter-column-wrap .filter-btn');
+  if (btn) btn.classList.toggle('filter-btn-active', hidden.size > 0);
+
+  // On phones the open column must be a shown one
+  const active = document.querySelector('.mobile-tab.active');
+  if (active && hidden.has(active.dataset.col) && typeof window.switchMobileTab === 'function') {
+    const first = document.querySelector('.mobile-tab[data-col]:not(.column-hidden)');
+    if (first) window.switchMobileTab(first.dataset.col);
+  }
+  syncFilterBarToColumns();
 }
 
 function onFilterCheckbox(type, checkbox) {
@@ -1495,7 +1623,7 @@ if (_origRender) {
   window.render = function() {
     _origRender();
     initFilterBar();
-    syncFilterBarToColumns();
+    applyColumnVisibility();
     injectDueDateChips();
     // Re-apply filters if any are active
     if (activeFilters.assignees.length || activeFilters.priorities.length ||
@@ -1549,6 +1677,10 @@ window.initDensityToggleLabel = initDensityToggleLabel;
 window.buildFilterCheckboxes = buildFilterCheckboxes;
 window.toggleFilterDropdown = toggleFilterDropdown;
 window.openFilterBarSearch = openFilterBarSearch;
+window.isColumnHidden = isColumnHidden;
+window.toggleColumnVisibility = toggleColumnVisibility;
+window.showAllColumns = showAllColumns;
+window.applyColumnVisibility = applyColumnVisibility;
 window.syncFilterBarToColumns = syncFilterBarToColumns;
 window.onFilterCheckbox = onFilterCheckbox;
 window.onFilterSearch = onFilterSearch;

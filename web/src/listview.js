@@ -345,7 +345,9 @@ function renderListView() {
     container.removeEventListener('scroll', _listScrollHandler);
   }
 
-  _listAllCards = sortCards(collectAllCards());
+  // Columns hidden by the status filter leave their cards out (epics still group)
+  const hiddenCol = typeof window.isColumnHidden === 'function' ? window.isColumnHidden : () => false;
+  _listAllCards = sortCards(collectAllCards()).filter(c => c.tag === 'epic' || !hiddenCol(c._column));
   _listRendered = 0;
 
   // Build table shell

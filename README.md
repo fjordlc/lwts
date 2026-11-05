@@ -86,6 +86,7 @@ branch so it can be taken on its own (branches marked *builds on* need the one t
 | **New-card presets** — `openCreateModal(preset)` opens the form with a column, epic or other value already chosen | `feat/new-card-preset` |
 | **Dropdown search hardening** — password managers stay away from the dropdown search box | `feat/dropdown-search-hardening` |
 | **Filter row layout** — search, filters, density and the board/list switch share one row above the board; search is one column wide on wide screens and an icon on phones, where the row scrolls and the board name gets room in the header | `feat/filter-bar-layout` |
+| **Status filter** — choose which columns show on the board, the phone tabs and the list view, remembered per board; the phone tabs follow the open board's columns | `feat/status-filter` (builds on `feat/filter-bar-layout`) |
 
 ## Quick Start
 

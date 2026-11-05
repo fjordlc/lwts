@@ -171,26 +171,16 @@ function wireA11yAnnouncements() {
 let mobileActiveCol = 'todo';
 
 function initMobileColumnTabs() {
-  if (document.getElementById('mobile-column-tabs')) return;
+  const existing = document.getElementById('mobile-column-tabs');
+  if (existing) {
+    buildMobileColumnTabs(existing);
+    return;
+  }
 
   const tabs = document.createElement('div');
   tabs.id = 'mobile-column-tabs';
   tabs.className = 'mobile-column-tabs';
-
-  if (typeof window.COLUMNS !== 'undefined') {
-    window.COLUMNS.forEach(col => {
-      const tab = document.createElement('div');
-      tab.className = 'mobile-tab' + (col.id === mobileActiveCol ? ' active' : '');
-      tab.dataset.col = col.id;
-      const count = document.querySelectorAll(`.card[data-col="${col.id}"]`).length ||
-                    (typeof window.state !== 'undefined' ? (window.state[col.id] || []).length : 0);
-      tab.innerHTML = `${col.label}<span class="tab-count">${count}</span>`;
-      tab.onclick = () => switchMobileTab(col.id);
-      tab.setAttribute('role', 'tab');
-      tab.setAttribute('aria-selected', col.id === mobileActiveCol ? 'true' : 'false');
-      tabs.appendChild(tab);
-    });
-  }
+  buildMobileColumnTabs(tabs);
 
   const filterBar = document.getElementById('filter-bar');
   const header = document.querySelector('.header');
@@ -202,6 +192,45 @@ function initMobileColumnTabs() {
   updateMobileTabsVisibility();
   applyMobileActiveColumn();
   requestAnimationFrame(revealActiveMobileTab);
+}
+
+const isColumnShown = (colId) => !(typeof window.isColumnHidden === 'function' && window.isColumnHidden(colId));
+
+// One tab per column of the current board. Boards have their own columns, so
+// the tabs are rebuilt when the columns change; columns hidden by the status
+// filter get no visible tab, and the active column is always a shown one.
+function buildMobileColumnTabs(tabs) {
+  if (typeof window.COLUMNS === 'undefined') return;
+  const cols = window.COLUMNS;
+  const shown = cols.filter(c => isColumnShown(c.id));
+  if (shown.length && !shown.some(c => c.id === mobileActiveCol)) mobileActiveCol = shown[0].id;
+
+  const signature = cols.map(c => c.id + ':' + c.label).join('|');
+  if (tabs.dataset.columns !== signature) {
+    tabs.dataset.columns = signature;
+    tabs.textContent = '';
+    cols.forEach(col => {
+      const tab = document.createElement('div');
+      tab.className = 'mobile-tab';
+      tab.dataset.col = col.id;
+      const count = document.querySelectorAll(`.card[data-col="${col.id}"]`).length ||
+                    (typeof window.state !== 'undefined' ? (window.state[col.id] || []).length : 0);
+      tab.append(col.label);
+      const countEl = document.createElement('span');
+      countEl.className = 'tab-count';
+      countEl.textContent = count;
+      tab.appendChild(countEl);
+      tab.onclick = () => switchMobileTab(col.id);
+      tab.setAttribute('role', 'tab');
+      tabs.appendChild(tab);
+    });
+  }
+  tabs.querySelectorAll('.mobile-tab').forEach(tab => {
+    const active = tab.dataset.col === mobileActiveCol;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-selected', active ? 'true' : 'false');
+    tab.classList.toggle('column-hidden', !isColumnShown(tab.dataset.col));
+  });
 }
 
 function switchMobileTab(colId) {

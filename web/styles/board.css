@@ -1314,6 +1314,31 @@ body:is([data-board-theme="summer-duotone"], [data-board-theme="round-geometric"
   animation: dropdownSpring 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .filter-menu.hidden { display: none; }
+/* Status filter: columns switched off for this board */
+.column-hidden { display: none !important; }
+.filter-btn.filter-btn-active { color: var(--text-primary); }
+.filter-column-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.filter-menu-action {
+  display: block;
+  width: calc(100% - 4px);
+  margin: 4px 2px 0;
+  padding: 8px 10px;
+  border: 0;
+  border-top: 1px solid var(--border-faint);
+  border-radius: 0 0 6px 6px;
+  background: none;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+}
+.filter-menu-action:hover { color: var(--text-primary); background: var(--surface-hover); }
 .filter-checkbox-item {
   display: flex;
   align-items: center;

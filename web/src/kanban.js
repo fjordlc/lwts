@@ -3243,6 +3243,7 @@ window.addEventListener('hashchange', () => {
 // ═══════════════════════════════════════════════════════════════
 
 window.COLUMNS = COLUMNS;
+window.columnColor = _colColor;
 window.TAG_LABELS = TAG_LABELS;
 window.TAG_COLORS = TAG_COLORS;
 window.EPIC_LANE_COLORS = EPIC_LANE_COLORS;
