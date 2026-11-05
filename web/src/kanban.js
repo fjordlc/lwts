@@ -1022,12 +1022,21 @@ function clearDropTarget() {
 
 let _isCreateMode = false;
 let _pendingCustomFields = {};
+let _pendingEpic = null;
 
-function openCreateModal() {
+// Opens the new-card form. `preset` may pre-fill it: { column_id, epic_id, tag, priority, assignee_id, custom_fields },
+// e.g. for an "add a card here" button on a column.
+function openCreateModal(preset) {
+  // Re-entering would save the create footer as the one to restore, so existing cards
+  // would lose their Delete/Close buttons after closing. The form that is open wins.
+  if (_isCreateMode) return;
+  // A plain object from any realm; ignores the Event passed when used directly as a click handler.
+  const p = Object.prototype.toString.call(preset) === '[object Object]' ? preset : {};
   _isCreateMode = true;
   _pendingDescription = '';
   _pendingComments = [];
   _pendingCustomFields = {};
+  _pendingEpic = null;
   detailCard = null;
   detailCol = null;
 
@@ -1063,7 +1072,19 @@ function openCreateModal() {
   ddDetailPriority.setValue('medium', true);
   ddDetailReporter.setValue(currentUser ? currentUser.id : 'unassigned', true);
   ddDetailAssignee.setValue('unassigned', true);
+  // Optional preset
+  if (p.column_id) ddDetailColumn.setValue(p.column_id, true);
+  if (p.tag) ddDetailTag.setValue(p.tag, true);
+  if (p.priority) ddDetailPriority.setValue(p.priority, true);
+  if (p.assignee_id) ddDetailAssignee.setValue(p.assignee_id, true);
+  if (p.custom_fields) Object.assign(_pendingCustomFields, p.custom_fields);
   document.getElementById('detail-points').value = '';
+
+  // Epic — offered when the board has epics
+  _refreshEpicDropdown();
+  const epicRow = document.getElementById('detail-epic-row');
+  if (epicRow) epicRow.style.display = COLUMNS.some(col => (state[col.id] || []).some(c => c.tag === 'epic')) ? '' : 'none';
+  if (p.epic_id) { _pendingEpic = p.epic_id; if (ddDetailEpic) ddDetailEpic.setValue(p.epic_id, true); }
 
   // Due date — default to +2 weeks
   const twoWeeks = new Date();
@@ -1087,23 +1108,29 @@ function openCreateModal() {
   const attachGrid = document.getElementById('detail-attachments');
   if (attachGrid) attachGrid.innerHTML = '';
 
-  // Footer — swap Close for Create
+  // Footer — closing the form saves a titled card, so the only action is Discard
   const footer = document.querySelector('#detail-modal .detail-footer');
   if (footer) {
     footer.dataset.origHtml = footer.innerHTML;
     footer.innerHTML = `
-      <div></div>
-      <div class="modal-footer-right">
-        <button class="lwts-modal-btn-cancel" onclick="closeCreateMode()">Cancel</button>
-        <button class="lwts-modal-btn-primary" id="create-submit-btn" onclick="submitCreateFromDetail()" disabled>Create</button>
-      </div>`;
+      <button class="lwts-modal-btn-cancel" onclick="discardCreate()">Discard</button>
+      <div class="modal-footer-right"></div>`;
   }
-
-  // Enable Create button when title is non-empty
-  titleEl.addEventListener('input', _updateCreateBtnState);
 
   document.getElementById('detail-modal').classList.add('active');
   setTimeout(() => titleEl.focus(), 50);
+  startCreateDraft();
+}
+
+// While the create form is open the new card is shown on the board, closing the form by any route
+// saves it, and Discard drops it. The draft is a placeholder card in `state` that is never persisted.
+const DRAFT_ID = 'draft-new-card';
+let _createDraft = false;
+let _draftDiscarded = false;
+
+function discardCreate() {
+  _draftDiscarded = true;
+  closeCreateMode();
 }
 
 // The project and status dropdowns are built once at start-up, but boards load later and each board
@@ -1113,14 +1140,59 @@ function _refreshDetailBoardOptions() {
   if (ddDetailColumn) ddDetailColumn.setOptions(COLUMNS.map(c => ({ value: c.id, label: c.label })));
 }
 
-function _updateCreateBtnState() {
-  const btn = document.getElementById('create-submit-btn');
-  if (btn) btn.disabled = !document.getElementById('detail-title').value.trim();
+function _removeDraftCard() {
+  for (const col of Object.keys(state)) {
+    if (Array.isArray(state[col])) state[col] = state[col].filter(c => c.id !== DRAFT_ID);
+  }
 }
 
+// Mirror the form onto the board as a placeholder card.
+function syncCreateDraft() {
+  if (!_createDraft) return;
+  _removeDraftCard();
+  const targetBoardId = (ddDetailProject ? ddDetailProject.getValue() : null) || currentBoardId;
+  if (targetBoardId === currentBoardId) {
+    const assignee = ddDetailAssignee.getValue();
+    const col = ddDetailColumn.getValue();
+    (state[col] ||= []).push({
+      id: DRAFT_ID, key: '', title: document.getElementById('detail-title').value.trim() || 'New card',
+      tag: ddDetailTag.getValue(), priority: ddDetailPriority.getValue(),
+      assignee: assignee === 'unassigned' ? null : assignee,
+      points: parseInt(document.getElementById('detail-points').value) || 0,
+      date: new Date().toISOString().split('T')[0],
+      description: '', attachments: [], comments: [], version: 0,
+      custom_fields: Object.assign({}, _pendingCustomFields), epic_id: _pendingEpic,
+    });
+  }
+  // window.render, not render: other modules wrap it (e.g. the phone layout re-applies its active column).
+  window.render();
+}
+
+function startCreateDraft() {
+  _createDraft = true;
+  _draftDiscarded = false;
+  syncCreateDraft();
+}
+
+// Runs after the form has closed, while its fields still hold what the user entered.
+function finishCreateDraft() {
+  if (!_createDraft) return;
+  const discarded = _draftDiscarded;
+  _createDraft = false;
+  _draftDiscarded = false;
+  _removeDraftCard();
+  if (!discarded && document.getElementById('detail-title').value.trim()) submitCreateFromDetail();
+  else window.render();
+}
+
+(function bindCreateDraft() {
+  const modal = document.getElementById('detail-modal');
+  if (!modal) return;
+  modal.addEventListener('input', syncCreateDraft);
+  modal.addEventListener('click', () => setTimeout(syncCreateDraft, 0));
+})();
+
 function closeCreateMode() {
-  const titleEl = document.getElementById('detail-title');
-  if (titleEl) titleEl.removeEventListener('input', _updateCreateBtnState);
   _isCreateMode = false;
   const footer = document.querySelector('#detail-modal .detail-footer');
   if (footer && footer.dataset.origHtml) {
@@ -1128,6 +1200,7 @@ function closeCreateMode() {
     delete footer.dataset.origHtml;
   }
   document.getElementById('detail-modal').classList.remove('active');
+  finishCreateDraft();
 }
 
 function submitCreateFromDetail() {
@@ -1135,6 +1208,7 @@ function submitCreateFromDetail() {
   if (!title) { document.getElementById('detail-title').focus(); return; }
 
   const col = ddDetailColumn.getValue();
+  const epicId = _pendingEpic || null;
   let assignee = ddDetailAssignee.getValue();
   const descEdit = document.getElementById('detail-desc-edit');
   const description = (detailEditor && !descEdit.classList.contains('hidden')) ? detailEditor.getMarkdown() : _pendingDescription;
@@ -1161,6 +1235,7 @@ function submitCreateFromDetail() {
     comments: _pendingComments.slice(),
     version: 0,
     custom_fields: Object.assign({}, _pendingCustomFields),
+    epic_id: epicId,
   };
 
   const pendingCommentTexts = _pendingComments.map(c => c.body || c.text);
@@ -1179,6 +1254,9 @@ function submitCreateFromDetail() {
   _pendingComments = [];
   const customFieldsPayload = Object.assign({}, _pendingCustomFields);
   window._pendingDueDate = null;
+  // This card is being saved now, so closing the form must not save the draft a second time.
+  _createDraft = false;
+  _removeDraftCard();
   closeCreateMode();
 
   if (targetBoardId) {
@@ -1194,6 +1272,7 @@ function submitCreateFromDetail() {
       points: card.points || null,
       due_date: card.due_date || null,
       custom_fields: customFieldsPayload,
+      epic_id: epicId,
     }).then(serverCard => {
       if (isCurrentBoard) {
         const colCards = state[col];
@@ -1289,7 +1368,17 @@ function _refreshEpicDropdown() {
   const epicEl = document.getElementById('detail-epic');
   if (epicEl) epicEl.innerHTML = '';
   ddDetailEpic = new window.FnDropdown(epicEl, {
-    value: '', options: epicOpts, onChange: (v) => detailFieldChanged('epic', v || null),
+    value: '', options: epicOpts, onChange: (v) => {
+      if (_isCreateMode && !detailCard) {
+        // New card: remember the choice; it is sent when the card is created.
+        _pendingEpic = v || null;
+        refreshSidebarTexts();
+        closeSidebarField('epic');
+        syncCreateDraft();
+      } else {
+        detailFieldChanged('epic', v || null);
+      }
+    },
   });
 }
 
@@ -1558,6 +1647,23 @@ function detailFieldChanged(field, value) {
 
 const SIDEBAR_FIELDS = ['project', 'column', 'tag', 'priority', 'reporter', 'assignee', 'epic', 'points'];
 
+// Show "KEY title"; when both do not fit, drop the key so the title stays readable. Compares natural
+// widths, so the result does not depend on the current wrap state, and refits when the field is resized or shown.
+function _applyEpicFit() {
+  const el = document.getElementById('detail-epic-text');
+  const key = el && el.querySelector('.detail-epic-key');
+  const name = el && el.querySelector('.detail-epic-name');
+  if (!name || !el.clientWidth) return;
+  el.classList.remove('detail-epic-compact');
+  el.classList.toggle('detail-epic-compact', key.offsetWidth + 6 + name.scrollWidth > el.clientWidth + 1);
+}
+function _fitEpicText() { requestAnimationFrame(_applyEpicFit); }
+(function observeEpicText() {
+  const el = document.getElementById('detail-epic-text');
+  if (el && window.ResizeObserver) new ResizeObserver(_applyEpicFit).observe(el);
+})();
+window.addEventListener('resize', _fitEpicText);
+
 function refreshSidebarTexts() {
   if (!detailCard && !_isCreateMode) return;
 
@@ -1594,8 +1700,8 @@ function refreshSidebarTexts() {
 
   // Epic
   const epicTextEl = document.getElementById('detail-epic-text');
-  if (epicTextEl && detailCard) {
-    const epicId = detailCard.epic_id || (ddDetailEpic ? ddDetailEpic.getValue() : '');
+  if (epicTextEl && (detailCard || _isCreateMode)) {
+    const epicId = detailCard ? (detailCard.epic_id || (ddDetailEpic ? ddDetailEpic.getValue() : '')) : _pendingEpic;
     if (epicId) {
       // Resolve the epic to show its key. cardIndex spans every loaded card
       // (all columns, cleared cards, and other boards in all-boards mode), so it
@@ -1608,11 +1714,23 @@ function refreshSidebarTexts() {
           if (epicCard) break;
         }
       }
-      epicTextEl.textContent = epicCard ? epicCard.key : 'Epic';
-      epicTextEl.title = epicCard ? (epicCard.title || '') : epicId;
+      epicTextEl.textContent = '';
+      const keyEl = document.createElement('span');
+      keyEl.className = 'detail-epic-key';
+      keyEl.textContent = epicCard ? epicCard.key : 'Epic';
+      epicTextEl.appendChild(keyEl);
+      if (epicCard && epicCard.title) {
+        const nameEl = document.createElement('span');
+        nameEl.className = 'detail-epic-name';
+        nameEl.textContent = epicCard.title;
+        epicTextEl.appendChild(nameEl);
+      }
+      epicTextEl.title = epicCard ? (epicCard.key + ' ' + (epicCard.title || '')).trim() : epicId;
+      _fitEpicText();
     } else {
       epicTextEl.textContent = 'None';
       epicTextEl.title = '';
+      epicTextEl.classList.remove('detail-epic-compact');
     }
   }
 
@@ -3125,6 +3243,7 @@ window.onDrop = onDrop;
 window.clearDropTarget = clearDropTarget;
 window.openCreateModal = openCreateModal;
 window.closeCreateMode = closeCreateMode;
+window.discardCreate = discardCreate;
 window.submitCreateFromDetail = submitCreateFromDetail;
 window.initDetailDropdowns = initDetailDropdowns;
 window.openDetail = openDetail;
@@ -3218,7 +3337,6 @@ Object.defineProperty(window, 'detailEditor', { get() { return detailEditor; }, 
 Object.defineProperty(window, 'commentEditor', { get() { return commentEditor; }, set(v) { commentEditor = v; }, configurable: true });
 Object.defineProperty(window, '_isCreateMode', { get() { return _isCreateMode; }, set(v) { _isCreateMode = v; }, configurable: true });
 Object.defineProperty(window, '_renderAnimateCards', { get() { return _renderAnimateCards; }, set(v) { _renderAnimateCards = v; }, configurable: true });
-Object.defineProperty(window, '_updateCreateBtnState', { get() { return _updateCreateBtnState; }, configurable: true });
 Object.defineProperty(window, 'dragCard', { get() { return dragCard; }, set(v) { dragCard = v; }, configurable: true });
 Object.defineProperty(window, 'dragSourceCol', { get() { return dragSourceCol; }, set(v) { dragSourceCol = v; }, configurable: true });
 Object.defineProperty(window, 'dragEl', { get() { return dragEl; }, set(v) { dragEl = v; }, configurable: true });

@@ -39,6 +39,7 @@ class FnDropdown {
     searchInput.type = 'text';
     searchInput.className = 'fn-dropdown-search-input';
     searchInput.placeholder = 'Search...';
+    FnDropdown._hideFromPasswordManagers(searchInput);
     searchInput.addEventListener('input', () => this._filter(searchInput.value));
     searchInput.addEventListener('click', (e) => e.stopPropagation());
     search.appendChild(searchInput);
@@ -124,6 +125,26 @@ class FnDropdown {
   }
 
   getValue() { return this.value; }
+
+  // The search box filters options; it is not a credential field. Password managers (iCloud Keychain etc.)
+  // otherwise offer to fill it, so mark it as a plain combobox and keep it read-only until the user engages.
+  static _hideFromPasswordManagers(input) {
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-autocomplete', 'list');
+    input.setAttribute('aria-label', 'Filter options');
+    input.setAttribute('autocomplete', 'off');
+    input.setAttribute('autocorrect', 'off');
+    input.setAttribute('autocapitalize', 'off');
+    input.setAttribute('spellcheck', 'false');
+    input.setAttribute('name', 'fn-opt-' + Math.random().toString(36).slice(2, 8));
+    input.setAttribute('enterkeyhint', 'done');
+    ['data-lpignore', 'data-1p-ignore', 'data-bwignore'].forEach(a => input.setAttribute(a, 'true'));
+    input.setAttribute('data-form-type', 'other');
+    input.readOnly = true;
+    const unlock = () => { input.readOnly = false; };
+    ['pointerdown', 'touchstart', 'keydown'].forEach(ev => input.addEventListener(ev, unlock, true));
+    input.addEventListener('blur', () => { input.readOnly = true; });
+  }
 
   setOptions(newOptions) { this.options = newOptions; this.render(); }
 

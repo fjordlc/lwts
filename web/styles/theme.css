@@ -45,6 +45,7 @@
   --accent-orange-bg: rgba(251,146,60,0.1);
   --accent-orange-border: rgba(251,146,60,0.2);
   --accent-red: rgba(248,113,113,0.9);
+  --card-selected: #579DFF; /* outline of the open card and of a new card's placeholder */
   --accent-red-bg: rgba(248,113,113,0.1);
   --accent-red-border: rgba(248,113,113,0.2);
   --gray-950: #0d0d0d;
@@ -377,6 +378,7 @@ body:not(.light-theme):is([data-board-theme="summer-duotone"], [data-board-theme
 /* ── Light theme ── */
 body.light-theme {
   --page-bg: #f5f5f5;
+  --card-selected: #2B7DE9;
   --page-bg-alt: #e8e8e8;
   --text-primary: #1a1a1a;
   --text-secondary: #555;
