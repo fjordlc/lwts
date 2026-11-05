@@ -1534,6 +1534,7 @@ function saveDetailFields() {
   }
 
   const wasEpic = detailCard.tag === 'epic';
+  const oldEpicId = detailCard.epic_id || null;
   detailCard.tag = ddDetailTag.getValue();
   detailCard.priority = ddDetailPriority.getValue();
   detailCard.reporter = ddDetailReporter.getValue();
@@ -1571,6 +1572,11 @@ function saveDetailFields() {
   }
 
   save();
+  // A new epic, or a card that became or stopped being an epic, changes the
+  // swimlanes: draw the board again so the card shows in its lane right away.
+  if ((detailCard.epic_id || null) !== oldEpicId || wasEpic !== (detailCard.tag === 'epic')) {
+    window.render();
+  }
 
   // Sync with API
   if (currentBoardId && detailCard.id && !detailCard.id.startsWith('temp-')) {

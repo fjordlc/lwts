@@ -347,7 +347,10 @@ function renderListView() {
 
   // Columns hidden by the status filter leave their cards out (epics still group)
   const hiddenCol = typeof window.isColumnHidden === 'function' ? window.isColumnHidden : () => false;
-  _listAllCards = sortCards(collectAllCards()).filter(c => c.tag === 'epic' || !hiddenCol(c._column));
+  // so do the epic groups hidden by the epic filter
+  const hiddenLane = (typeof window.hiddenEpicLaneTest === 'function' && window.hiddenEpicLaneTest()) || (() => false);
+  _listAllCards = sortCards(collectAllCards())
+    .filter(c => (c.tag === 'epic' || !hiddenCol(c._column)) && !hiddenLane(c));
   _listRendered = 0;
 
   // Build table shell

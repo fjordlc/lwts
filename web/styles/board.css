@@ -1316,6 +1316,18 @@ body:is([data-board-theme="summer-duotone"], [data-board-theme="round-geometric"
 .filter-menu.hidden { display: none; }
 /* Status filter: columns switched off for this board */
 .column-hidden { display: none !important; }
+/* Epic filter: swimlanes switched off for this board */
+.epic-lane.lane-hidden { display: none !important; }
+#filter-epic-menu {
+  min-width: 260px;
+  max-width: 360px;
+}
+.filter-epic-key {
+  color: var(--text-dimmed);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
 .filter-btn.filter-btn-active { color: var(--text-primary); }
 .filter-column-dot {
   width: 8px;

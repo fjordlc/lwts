@@ -435,6 +435,14 @@ function initFilterBar() {
         </button>
         <div class="filter-menu hidden" id="filter-column-menu"></div>
       </div>
+      <div class="filter-dropdown" id="filter-epic-wrap" style="display:none">
+        <button class="filter-btn" onclick="toggleFilterDropdown('epic')" aria-label="Filter by epic">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          Epic
+          <span class="filter-badge" id="filter-epic-badge"></span>
+        </button>
+        <div class="filter-menu hidden" id="filter-epic-menu"></div>
+      </div>
       <div class="filter-status" id="filter-status"></div>
       <div class="filter-view-group" id="filter-view-group">
         <div class="filter-dropdown" id="filter-density-wrap">
@@ -674,6 +682,7 @@ function toggleFilterDropdown(type) {
 
   if (!wasHidden) return;
   if (type === 'column') buildColumnFilterMenu();
+  if (type === 'epic') buildEpicFilterMenu();
   // Menus open next to their button again after a phone has lifted them out.
   const wrap = document.getElementById(`filter-${type}-wrap`);
   if (wrap && menu.parentNode !== wrap) {
@@ -814,6 +823,124 @@ function applyColumnVisibility() {
     if (first) window.switchMobileTab(first.dataset.col);
   }
   syncFilterBarToColumns();
+}
+
+// ── Epic filter ──
+// Which epic swimlanes show (and the lane of cards without an epic, id ''),
+// on the board and in the list view's epic groups. Like the status filter it
+// is a view choice, remembered per board in this browser.
+
+const HIDDEN_EPICS_KEY = 'lwts-hidden-epics:';
+const _hiddenEpicsByBoard = {};
+
+function boardEpics() {
+  const epics = [];
+  (window.COLUMNS || []).forEach(col => (window.state[col.id] || []).forEach(c => { if (c.tag === 'epic') epics.push(c); }));
+  return epics;
+}
+
+function currentHiddenEpics() {
+  const boardId = window.currentBoardId || '';
+  if (!(boardId in _hiddenEpicsByBoard)) {
+    let stored = [];
+    try { stored = JSON.parse(localStorage.getItem(HIDDEN_EPICS_KEY + boardId) || '[]'); } catch { stored = []; }
+    _hiddenEpicsByBoard[boardId] = Array.isArray(stored) ? stored : [];
+  }
+  return new Set(_hiddenEpicsByBoard[boardId]);
+}
+
+// For the list view: a test for cards in hidden lanes (its epic, or '' for
+// cards without one), or null when no lane is hidden.
+function hiddenEpicLaneTest() {
+  const epicIds = new Set(boardEpics().map(e => e.id));
+  const hidden = currentHiddenEpics();
+  if (!epicIds.size || !hidden.size) return null;
+  return (card) => {
+    const lane = card.tag === 'epic' ? card.id : (card.epic_id && epicIds.has(card.epic_id) ? card.epic_id : '');
+    return hidden.has(lane);
+  };
+}
+
+function setHiddenEpics(hidden) {
+  const boardId = window.currentBoardId || '';
+  _hiddenEpicsByBoard[boardId] = [...hidden];
+  try {
+    if (hidden.size) localStorage.setItem(HIDDEN_EPICS_KEY + boardId, JSON.stringify([...hidden]));
+    else localStorage.removeItem(HIDDEN_EPICS_KEY + boardId);
+  } catch { /* storage unavailable: the choice lasts until reload */ }
+  applyEpicLaneVisibility();
+  if (window.currentView === 'list' && typeof window.renderListView === 'function') window.renderListView();
+  buildEpicFilterMenu();
+}
+
+function toggleEpicLane(laneId) {
+  const hidden = currentHiddenEpics();
+  if (hidden.has(laneId)) hidden.delete(laneId); else hidden.add(laneId);
+  setHiddenEpics(hidden);
+}
+
+function showAllEpicLanes() {
+  setHiddenEpics(new Set());
+}
+
+function buildEpicFilterMenu() {
+  const menu = document.getElementById('filter-epic-menu');
+  if (!menu) return;
+  const hidden = currentHiddenEpics();
+  menu.innerHTML = '';
+  const items = document.createElement('div');
+  items.className = 'filter-menu-items';
+  const lanes = boardEpics().map(e => ({ id: e.id, key: e.key || '', title: e.title || '' }));
+  lanes.push({ id: '', key: '', title: 'No epic' });
+  lanes.forEach(lane => {
+    const label = document.createElement('label');
+    label.className = 'filter-checkbox-item';
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.value = lane.id;
+    box.checked = !hidden.has(lane.id);
+    box.addEventListener('change', () => toggleEpicLane(lane.id));
+    label.appendChild(box);
+    if (lane.key) {
+      const key = document.createElement('span');
+      key.className = 'filter-epic-key';
+      key.textContent = lane.key;
+      label.append(key, ' ');
+    }
+    const name = document.createElement('span');
+    name.textContent = lane.title;
+    label.appendChild(name);
+    items.appendChild(label);
+  });
+  menu.appendChild(items);
+  if (hidden.size) {
+    const all = document.createElement('button');
+    all.type = 'button';
+    all.className = 'filter-menu-action';
+    all.textContent = 'Show all';
+    all.addEventListener('click', showAllEpicLanes);
+    menu.appendChild(all);
+  }
+}
+
+// The Epic filter only appears on boards with epics (the swimlane layout).
+function applyEpicLaneVisibility() {
+  const epics = boardEpics();
+  const ids = new Set(['', ...epics.map(e => e.id)]);
+  const hidden = new Set([...currentHiddenEpics()].filter(id => ids.has(id)));
+  document.querySelectorAll('#board .epic-lane').forEach(lane => {
+    const id = lane.classList.contains('epic-lane-ungrouped') ? '' : lane.dataset.epicId;
+    if (id !== undefined) lane.classList.toggle('lane-hidden', hidden.has(id));
+  });
+  const wrap = document.getElementById('filter-epic-wrap');
+  if (wrap) wrap.style.display = epics.length ? '' : 'none';
+  const badge = document.getElementById('filter-epic-badge');
+  if (badge) {
+    badge.textContent = hidden.size ? ids.size - hidden.size : '';
+    badge.style.display = hidden.size ? 'inline-flex' : 'none';
+  }
+  const btn = document.querySelector('#filter-epic-wrap .filter-btn');
+  if (btn) btn.classList.toggle('filter-btn-active', hidden.size > 0);
 }
 
 function onFilterCheckbox(type, checkbox) {
@@ -1624,6 +1751,7 @@ if (_origRender) {
     _origRender();
     initFilterBar();
     applyColumnVisibility();
+    applyEpicLaneVisibility();
     injectDueDateChips();
     // Re-apply filters if any are active
     if (activeFilters.assignees.length || activeFilters.priorities.length ||
@@ -1678,6 +1806,10 @@ window.buildFilterCheckboxes = buildFilterCheckboxes;
 window.toggleFilterDropdown = toggleFilterDropdown;
 window.openFilterBarSearch = openFilterBarSearch;
 window.isColumnHidden = isColumnHidden;
+window.hiddenEpicLaneTest = hiddenEpicLaneTest;
+window.toggleEpicLane = toggleEpicLane;
+window.showAllEpicLanes = showAllEpicLanes;
+window.applyEpicLaneVisibility = applyEpicLaneVisibility;
 window.toggleColumnVisibility = toggleColumnVisibility;
 window.showAllColumns = showAllColumns;
 window.applyColumnVisibility = applyColumnVisibility;
