@@ -1329,6 +1329,22 @@ body:is([data-board-theme="summer-duotone"], [data-board-theme="round-geometric"
   white-space: nowrap;
 }
 .filter-btn.filter-btn-active { color: var(--text-primary); }
+/* Icon-only view buttons (Sort) */
+.filter-btn.filter-btn-icon {
+  width: var(--btn-height);
+  padding: 0;
+  justify-content: center;
+}
+.filter-btn-icon.filter-btn-active { background: var(--surface-hover); }
+#filter-sort-menu { min-width: 190px; }
+.filter-sort-item {
+  justify-content: space-between;
+  cursor: pointer;
+}
+.filter-sort-dir {
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
 .filter-column-dot {
   width: 8px;
   height: 8px;

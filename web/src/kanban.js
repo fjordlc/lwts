@@ -299,6 +299,7 @@ async function loadBoardCards(boardId) {
 
   const grouped = await window.API.listCards(boardId);
   if (gen !== _loadGeneration) return; // stale load, discard
+  if (typeof window.restoreBoardView === 'function') window.restoreBoardView(boardId);
   cardIndex = {};
   const prevCleared = state.cleared || [];
   state = { cleared: prevCleared };
@@ -532,6 +533,63 @@ function _scheduleColumnHeightSync() {
   });
 }
 
+// ── Card order ──
+// Each column shows its cards in their stored (drag) order, or sorted by one
+// property with the Sort button. Sorting only changes what is shown: the
+// stored positions stay as they are. The choice is kept per board in this
+// browser.
+
+const CARD_SORT_KEY = 'lwts-sort:';
+const CARD_SORT_OPTIONS = [
+  { key: 'manual', label: 'Manual order', dir: 'asc' },
+  { key: 'priority', label: 'Priority', dir: 'asc' },
+  { key: 'title', label: 'Title', dir: 'asc' },
+  { key: 'key', label: 'Key', dir: 'asc' },
+  { key: 'updated', label: 'Last updated', dir: 'desc' },
+  { key: 'created', label: 'Created', dir: 'desc' },
+];
+const _cardSortByBoard = {}; // also keeps the choice when storage is unavailable
+
+function getCardSort(boardId) {
+  const id = boardId || currentBoardId || '';
+  if (!(id in _cardSortByBoard)) {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(CARD_SORT_KEY + id) || 'null'); } catch { saved = null; }
+    const known = saved && CARD_SORT_OPTIONS.some(o => o.key === saved.key);
+    _cardSortByBoard[id] = known ? { key: saved.key, dir: saved.dir === 'desc' ? 'desc' : 'asc' } : { key: 'manual', dir: 'asc' };
+  }
+  return Object.assign({}, _cardSortByBoard[id]);
+}
+
+// Choosing the current property again reverses its direction.
+function setCardSort(key) {
+  const option = CARD_SORT_OPTIONS.find(o => o.key === key);
+  if (!option) return getCardSort();
+  const current = getCardSort();
+  const next = key === current.key && key !== 'manual'
+    ? { key, dir: current.dir === 'asc' ? 'desc' : 'asc' }
+    : { key, dir: option.dir };
+  const id = currentBoardId || '';
+  _cardSortByBoard[id] = next;
+  try {
+    if (next.key === 'manual') localStorage.removeItem(CARD_SORT_KEY + id);
+    else localStorage.setItem(CARD_SORT_KEY + id, JSON.stringify(next));
+  } catch { /* storage unavailable: the choice lasts until reload */ }
+  return Object.assign({}, next);
+}
+
+function isCardSortActive() {
+  return getCardSort().key !== 'manual';
+}
+
+// The cards in the order they are shown; ties keep their stored order.
+function cardsInDisplayOrder(cards) {
+  const sort = getCardSort();
+  if (sort.key === 'manual' || typeof window.compareCards !== 'function') return cards;
+  const dir = sort.dir === 'desc' ? -1 : 1;
+  return cards.slice().sort((a, b) => window.compareCards(a, b, sort.key) * dir);
+}
+
 function render() {
   EPIC_LANE_COLORS = _getEpicColors();
   const board = document.getElementById('board');
@@ -611,8 +669,8 @@ function _renderStandardBoard(frag) {
       body.appendChild(empty);
     }
 
-    cards.forEach((card, idx) => {
-      body.appendChild(createCardEl(card, col.id, idx));
+    cardsInDisplayOrder(cards).forEach(card => {
+      body.appendChild(createCardEl(card, col.id, cards.indexOf(card)));
     });
 
     body.addEventListener('dragover', onDragOver);
@@ -681,7 +739,7 @@ function _renderEpicBoard(frag, epics) {
       body.dataset.col = col.id;
       body.dataset.epic = epic.id;
 
-      const laneCards = cardsByColumn[ci] || [];
+      const laneCards = cardsInDisplayOrder(cardsByColumn[ci] || []);
       laneCards.forEach((card, idx) => {
         body.appendChild(createCardEl(card, col.id, idx));
       });
@@ -717,7 +775,7 @@ function _renderEpicBoard(frag, epics) {
       body.dataset.col = col.id;
       body.dataset.epic = '';
 
-      const ungroupedCards = layout.ungroupedByColumn[ci] || [];
+      const ungroupedCards = cardsInDisplayOrder(layout.ungroupedByColumn[ci] || []);
       ungroupedCards.forEach((card, idx) => {
         body.appendChild(createCardEl(card, col.id, idx));
       });
@@ -889,15 +947,28 @@ function onDrop(e) {
   const origSourceCol = dragSourceCol;
   const origState = JSON.parse(JSON.stringify(state));
 
+  // A sorted column decides the order itself: a card dropped into it goes to
+  // the end of the stored order, and a drop within it changes nothing.
+  const sorted = isCardSortActive();
+  if (sorted && targetCol === dragSourceCol && !epicChanged) {
+    if (dragEl) dragEl.classList.remove('dragging');
+    clearDropTarget();
+    dragEl = null; dragCard = null; dragSourceCol = null;
+    return;
+  }
+
   // Remove from source
   const srcIdx = state[dragSourceCol].findIndex(c => c.id === dragCard.id);
   if (srcIdx !== -1) state[dragSourceCol].splice(srcIdx, 1);
 
   let insertIdx;
-  if (dropTargetCard) {
+  if (dropTargetCard && !sorted) {
     const targetIdx = parseInt(dropTargetCard.dataset.idx);
     insertIdx = targetIdx;
     if (dragSourceCol === targetCol && srcIdx < targetIdx) insertIdx--;
+    state[targetCol].splice(insertIdx, 0, dragCard);
+  } else if (sorted && targetCol === dragSourceCol && srcIdx !== -1) {
+    insertIdx = srcIdx; // only its epic changes
     state[targetCol].splice(insertIdx, 0, dragCard);
   } else {
     state[targetCol] = state[targetCol] || [];
@@ -914,7 +985,7 @@ function onDrop(e) {
   save();
 
   const isEpicMode = document.getElementById('board').classList.contains('board-epic-mode');
-  if (epicChanged || isEpicMode) {
+  if (epicChanged || isEpicMode || sorted) {
     dragEl = null; dragCard = null; dragSourceCol = null;
     window.render();
     // Wiggle animation on the dropped card
@@ -3280,6 +3351,11 @@ window.getDefaultBoardId = getDefaultBoardId;
 window.loadFromLocalStorage = loadFromLocalStorage;
 window.save = save;
 window.render = render;
+window.CARD_SORT_OPTIONS = CARD_SORT_OPTIONS;
+window.getCardSort = getCardSort;
+window.setCardSort = setCardSort;
+window.isCardSortActive = isCardSortActive;
+window.cardsInDisplayOrder = cardsInDisplayOrder;
 window.dockHeaderMenus = dockHeaderMenus;
 window._scheduleColumnHeightSync = _scheduleColumnHeightSync;
 window.createCardEl = createCardEl;

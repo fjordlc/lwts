@@ -544,6 +544,10 @@
     width: 100%;
     justify-content: center;
   }
+  .filter-btn.filter-btn-icon {
+    width: 36px;
+    padding: 0;
+  }
   /* The row scrolls sideways when the filters and view controls do not fit */
   .filter-bar > .filter-group {
     overflow-x: auto;

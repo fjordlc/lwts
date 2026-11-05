@@ -50,19 +50,31 @@ let STATUS_LABELS = _buildStatusLabels();
 // VIEW SWITCHING
 // ═══════════════════════════════════════════════════════════════
 
-function switchView(view) {
+// Shows the board or the list without drawing either.
+function _setView(view) {
   currentView = view;
   window.currentView = view;
   localStorage.setItem('lwts-view', view);
   if (typeof window.updateMobileTabsVisibility === 'function') window.updateMobileTabsVisibility();
 
-  const board = document.getElementById('board');
-  const listView = document.getElementById('list-view');
-
   // Update switcher button active states immediately
   document.querySelectorAll('.view-switcher-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.view === view);
   });
+
+  const board = document.getElementById('board');
+  const listView = document.getElementById('list-view');
+  if (!board || !listView) return;
+  board.style.display = view === 'board' ? '' : 'none';
+  listView.style.display = view === 'board' ? 'none' : '';
+}
+
+function switchView(view) {
+  _setView(view);
+  rememberBoardView({ view });
+
+  const board = document.getElementById('board');
+  const listView = document.getElementById('list-view');
 
   if (view === 'board') {
     listView.style.display = 'none';
@@ -72,6 +84,7 @@ function switchView(view) {
         ? window.getDefaultBoardId()
         : window.boardList[0].id;
       const fallbackBoard = window.boardList.find(b => b.id === fallbackBoardId);
+      rememberBoardView({ view: 'board' }, fallbackBoardId);
       // Clear old content first to avoid flash of stale board
       board.innerHTML = '';
       board.style.display = '';
@@ -86,6 +99,45 @@ function switchView(view) {
     listView.style.display = '';
     renderListView();
   }
+}
+
+// ── View per board ──
+// Board or list, and the card density, are remembered per board in this
+// browser: a board opens the way it was last looked at. Boards without a
+// memory keep the current view and the account's density.
+
+const BOARD_VIEW_KEY = 'lwts-board-view:';
+
+function _readBoardView(boardId) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(BOARD_VIEW_KEY + boardId) || 'null');
+    return saved && typeof saved === 'object' ? saved : {};
+  } catch { return {}; }
+}
+
+function rememberBoardView(patch, boardId) {
+  const id = boardId || window.currentBoardId;
+  if (!id || id === 'all') return;
+  try {
+    localStorage.setItem(BOARD_VIEW_KEY + id, JSON.stringify(Object.assign(_readBoardView(id), patch)));
+  } catch { /* storage unavailable: nothing is remembered */ }
+}
+
+// Called when a board's cards have loaded, before they are drawn.
+function restoreBoardView(boardId) {
+  if (!boardId || boardId === 'all') return;
+  const saved = _readBoardView(boardId);
+  if ((saved.view === 'board' || saved.view === 'list') && saved.view !== currentView) _setView(saved.view);
+  if (saved.density && typeof window.applyDensity === 'function') window.applyDensity(saved.density);
+  // The board's Sort choice orders the list too
+  const sort = typeof window.getCardSort === 'function' ? window.getCardSort(boardId) : null;
+  if (sort && sort.key !== 'manual') setListSort(sort.key, sort.dir);
+}
+
+// Orders the list by one column (the list's own header clicks do the same).
+function setListSort(col, dir) {
+  listSortCol = col;
+  listSortDir = dir === 'desc' ? 'desc' : 'asc';
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -107,61 +159,62 @@ function collectAllCards() {
 
 function sortCards(cards) {
   const dir = listSortDir === 'asc' ? 1 : -1;
-  const col = listSortCol;
+  return cards.sort((a, b) => compareCards(a, b, listSortCol) * dir);
+}
 
-  cards.sort((a, b) => {
-    let cmp = 0;
-    switch (col) {
-      case 'key': {
-        const pa = (a.key || '').split('-');
-        const pb = (b.key || '').split('-');
-        cmp = (pa[0] || '').localeCompare(pb[0] || '');
-        if (cmp === 0) cmp = (parseInt(pa[1]) || 0) - (parseInt(pb[1]) || 0);
-        break;
-      }
-      case 'title':
-        cmp = (a.title || '').localeCompare(b.title || '');
-        break;
-      case 'status':
-        cmp = (STATUS_ORDER[a._column] ?? 99) - (STATUS_ORDER[b._column] ?? 99);
-        break;
-      case 'tag':
-        cmp = (window.TAG_LABELS[a.tag] || a.tag || '').localeCompare(window.TAG_LABELS[b.tag] || b.tag || '');
-        break;
-      case 'priority':
-        cmp = (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99);
-        break;
-      case 'assignee': {
-        const ua = window.getUserById(a.assignee);
-        const ub = window.getUserById(b.assignee);
-        cmp = (ua.label || '').localeCompare(ub.label || '');
-        break;
-      }
-      case 'points':
-        cmp = (a.points || 0) - (b.points || 0);
-        break;
-      case 'date': {
-        const da = a.date ? new Date(a.date).getTime() : 0;
-        const db = b.date ? new Date(b.date).getTime() : 0;
-        cmp = da - db;
-        break;
-      }
-      case 'created': {
-        const ca = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const cb = b.created_at ? new Date(b.created_at).getTime() : 0;
-        cmp = ca - cb;
-        break;
-      }
-      case 'updated': {
-        const ua = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-        const ub = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-        cmp = ua - ub;
-        break;
-      }
+// Ascending order of two cards by one property (a list column, or the board's
+// Sort choice). Shared by the list view and the board.
+function compareCards(a, b, col) {
+  let cmp = 0;
+  switch (col) {
+    case 'key': {
+      const pa = (a.key || '').split('-');
+      const pb = (b.key || '').split('-');
+      cmp = (pa[0] || '').localeCompare(pb[0] || '');
+      if (cmp === 0) cmp = (parseInt(pa[1]) || 0) - (parseInt(pb[1]) || 0);
+      break;
     }
-    return cmp * dir;
-  });
-  return cards;
+    case 'title':
+      cmp = (a.title || '').localeCompare(b.title || '');
+      break;
+    case 'status':
+      cmp = (STATUS_ORDER[a._column] ?? 99) - (STATUS_ORDER[b._column] ?? 99);
+      break;
+    case 'tag':
+      cmp = (window.TAG_LABELS[a.tag] || a.tag || '').localeCompare(window.TAG_LABELS[b.tag] || b.tag || '');
+      break;
+    case 'priority':
+      cmp = (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99);
+      break;
+    case 'assignee': {
+      const ua = window.getUserById(a.assignee);
+      const ub = window.getUserById(b.assignee);
+      cmp = (ua.label || '').localeCompare(ub.label || '');
+      break;
+    }
+    case 'points':
+      cmp = (a.points || 0) - (b.points || 0);
+      break;
+    case 'date': {
+      const da = a.date ? new Date(a.date).getTime() : 0;
+      const db = b.date ? new Date(b.date).getTime() : 0;
+      cmp = da - db;
+      break;
+    }
+    case 'created': {
+      const ca = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const cb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      cmp = ca - cb;
+      break;
+    }
+    case 'updated': {
+      const ua = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const ub = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      cmp = ua - ub;
+      break;
+    }
+  }
+  return cmp;
 }
 
 function createListRow(card, animIdx) {
@@ -929,8 +982,12 @@ window.PRIORITY_ORDER = PRIORITY_ORDER;
 window.STATUS_COLORS = STATUS_COLORS;
 window.STATUS_LABELS = STATUS_LABELS;
 window.switchView = switchView;
+window.rememberBoardView = rememberBoardView;
+window.restoreBoardView = restoreBoardView;
+window.setListSort = setListSort;
 window.collectAllCards = collectAllCards;
 window.sortCards = sortCards;
+window.compareCards = compareCards;
 window.createListRow = createListRow;
 window.appendNextPage = appendNextPage;
 window.onListScroll = onListScroll;

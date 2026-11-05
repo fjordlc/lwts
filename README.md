@@ -88,6 +88,7 @@ branch so it can be taken on its own (branches marked *builds on* need the one t
 | **Filter row layout** — search, filters, density and the board/list switch share one row above the board; search is one column wide on wide screens and an icon on phones, where the row scrolls and the board name gets room in the header | `feat/filter-bar-layout` |
 | **Status filter** — choose which columns show on the board, the phone tabs and the list view, remembered per board; the phone tabs follow the open board's columns | `feat/status-filter` (builds on `feat/filter-bar-layout`) |
 | **Epic filter** — choose which epic swimlanes (and the lane without epic) show on the board and in the list view, remembered per board; a card moves to its new epic's lane as soon as the epic is picked | `feat/epic-lane-filter` (builds on `feat/status-filter`) |
+| **Sort cards** — a Sort button orders each column (and the list) by priority, title, key, last updated or created, or keeps the manual drag order, without changing the stored order; each board remembers its sort, board/list view and density | `feat/sort-cards` (builds on `feat/epic-lane-filter`) |
 
 ## Quick Start
 

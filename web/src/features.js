@@ -445,6 +445,12 @@ function initFilterBar() {
       </div>
       <div class="filter-status" id="filter-status"></div>
       <div class="filter-view-group" id="filter-view-group">
+        <div class="filter-dropdown" id="filter-sort-wrap">
+          <button class="filter-btn filter-btn-icon" onclick="toggleFilterDropdown('sort')" aria-label="Sort cards" title="Sort cards">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16"/><path d="M3 16l4 4 4-4"/><path d="M17 20V4"/><path d="M13 8l4-4 4 4"/></svg>
+          </button>
+          <div class="filter-menu hidden" id="filter-sort-menu"></div>
+        </div>
         <div class="filter-dropdown" id="filter-density-wrap">
           <button class="filter-btn" onclick="toggleFilterDropdown('density')">
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -584,13 +590,19 @@ function getCurrentDensity() {
   return 'default';
 }
 
-function selectDensity(value) {
+// Shows the cards at one density, without saving it.
+function applyDensity(value) {
+  if (!DENSITY_LABELS[value]) return;
   document.body.classList.remove('density-compact', 'density-comfortable');
   if (value !== 'default') document.body.classList.add('density-' + value);
-
-  // Update label
   const label = document.getElementById('density-toggle-label');
   if (label) label.textContent = DENSITY_LABELS[value];
+}
+
+function selectDensity(value) {
+  applyDensity(value);
+  // The board remembers it; the account setting is the default for other boards
+  if (typeof window.rememberBoardView === 'function') window.rememberBoardView({ density: value });
 
   // Persist to API (single source of truth) + localStorage cache for anti-FOUC
   if (typeof window.API !== 'undefined') {
@@ -683,6 +695,7 @@ function toggleFilterDropdown(type) {
   if (!wasHidden) return;
   if (type === 'column') buildColumnFilterMenu();
   if (type === 'epic') buildEpicFilterMenu();
+  if (type === 'sort') buildCardSortMenu();
   // Menus open next to their button again after a phone has lifted them out.
   const wrap = document.getElementById(`filter-${type}-wrap`);
   if (wrap && menu.parentNode !== wrap) {
@@ -704,6 +717,50 @@ function liftFilterMenu(menu) {
   menu.classList.add('filter-menu-lifted');
   menu.style.top = (bottom + 4) + 'px';
   menu.style.maxHeight = `calc(100dvh - ${bottom + 16}px)`;
+}
+
+// ── Sort ──
+// The Sort button orders the cards in each column (and the list) by one
+// property, or keeps their manual drag order. kanban.js keeps the choice.
+
+function buildCardSortMenu() {
+  const menu = document.getElementById('filter-sort-menu');
+  if (!menu || typeof window.getCardSort !== 'function') return;
+  const current = window.getCardSort();
+  menu.innerHTML = '';
+  (window.CARD_SORT_OPTIONS || []).forEach(opt => {
+    const item = document.createElement('div');
+    item.className = 'filter-checkbox-item filter-sort-item' + (opt.key === current.key ? ' active' : '');
+    item.dataset.sort = opt.key;
+    const name = document.createElement('span');
+    name.textContent = opt.label;
+    const dir = document.createElement('span');
+    dir.className = 'filter-sort-dir';
+    dir.textContent = opt.key === current.key && opt.key !== 'manual' ? (current.dir === 'asc' ? '\u2191' : '\u2193') : '';
+    item.append(name, dir);
+    item.addEventListener('click', () => chooseCardSort(opt.key));
+    menu.appendChild(item);
+  });
+}
+
+function chooseCardSort(key) {
+  const sort = window.setCardSort(key);
+  if (sort.key !== 'manual' && typeof window.setListSort === 'function') window.setListSort(sort.key, sort.dir);
+  const menu = document.getElementById('filter-sort-menu');
+  if (menu) menu.classList.add('hidden');
+  window.render();
+  if (window.currentView === 'list' && typeof window.renderListView === 'function') window.renderListView();
+}
+
+function applyCardSortButton() {
+  const btn = document.querySelector('#filter-sort-wrap .filter-btn');
+  if (!btn || typeof window.getCardSort !== 'function') return;
+  const sort = window.getCardSort();
+  const option = (window.CARD_SORT_OPTIONS || []).find(o => o.key === sort.key);
+  btn.classList.toggle('filter-btn-active', sort.key !== 'manual');
+  btn.title = sort.key === 'manual' || !option
+    ? 'Sort cards'
+    : 'Sorted by ' + option.label.toLowerCase() + (sort.dir === 'asc' ? ' \u2191' : ' \u2193');
 }
 
 // ── Status filter ──
@@ -1752,6 +1809,7 @@ if (_origRender) {
     initFilterBar();
     applyColumnVisibility();
     applyEpicLaneVisibility();
+    applyCardSortButton();
     injectDueDateChips();
     // Re-apply filters if any are active
     if (activeFilters.assignees.length || activeFilters.priorities.length ||
@@ -1801,6 +1859,9 @@ window.initFilterBar = initFilterBar;
 window.buildDensityOptions = buildDensityOptions;
 window.getCurrentDensity = getCurrentDensity;
 window.selectDensity = selectDensity;
+window.applyDensity = applyDensity;
+window.buildCardSortMenu = buildCardSortMenu;
+window.chooseCardSort = chooseCardSort;
 window.initDensityToggleLabel = initDensityToggleLabel;
 window.buildFilterCheckboxes = buildFilterCheckboxes;
 window.toggleFilterDropdown = toggleFilterDropdown;
