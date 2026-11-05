@@ -734,6 +734,52 @@ function liftFilterMenu(menu) {
   menu.style.maxHeight = `calc(100dvh - ${bottom + 16}px)`;
 }
 
+// ── Filters per board ──
+// The card filters (not the search text) are remembered per user and board
+// in this browser and come back when the board is opened again.
+
+const FILTERS_KEY = 'lwts-filters:';
+
+function _filtersStorageKey(boardId) {
+  const user = (window.Auth && typeof window.Auth.getUser === 'function' && window.Auth.getUser()) || window.currentUser;
+  return FILTERS_KEY + ((user && user.id) || 'anon') + ':' + (boardId || window.currentBoardId || '');
+}
+
+function saveBoardFilters() {
+  const boardId = window.currentBoardId;
+  if (!boardId || boardId === 'all') return;
+  const saved = { assignees: activeFilters.assignees, priorities: activeFilters.priorities, tags: activeFilters.tags, custom: activeFilters.custom };
+  const empty = !saved.assignees.length && !saved.priorities.length && !saved.tags.length && !Object.keys(saved.custom).length;
+  try {
+    if (empty) localStorage.removeItem(_filtersStorageKey(boardId));
+    else localStorage.setItem(_filtersStorageKey(boardId), JSON.stringify(saved));
+  } catch { /* storage unavailable: filters last until the board changes */ }
+}
+
+// Called when a board's cards have loaded, before they are drawn.
+function restoreBoardFilters(boardId) {
+  if (!boardId || boardId === 'all') return;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(_filtersStorageKey(boardId)) || 'null'); } catch { saved = null; }
+  const list = (v) => (Array.isArray(v) ? v.filter(x => typeof x === 'string') : []);
+  const custom = {};
+  if (saved && saved.custom && typeof saved.custom === 'object') {
+    Object.entries(saved.custom).forEach(([id, v]) => { if (list(v).length) custom[id] = list(v); });
+  }
+  Object.assign(activeFilters, {
+    assignees: list(saved && saved.assignees),
+    priorities: list(saved && saved.priorities),
+    tags: list(saved && saved.tags),
+    custom,
+  });
+  [['assignee', 'assignees'], ['priority', 'priorities'], ['tag', 'tags']].forEach(([type, key]) => {
+    document.querySelectorAll(`#filter-${type}-menu input[type="checkbox"]`).forEach(cb => {
+      cb.checked = activeFilters[key].includes(cb.value);
+    });
+  });
+  _customFilterSignature = null; // the custom field menus are rebuilt with these values
+}
+
 // ── Custom field filters ──
 // One filter menu per choice custom field of the open board, after Type.
 // Each lists the field's choices and "No <field>".
@@ -813,6 +859,7 @@ function onCustomFieldFilter(fieldId, checkbox) {
   if (checkbox.checked) wanted.push(checkbox.value);
   if (wanted.length) activeFilters.custom[fieldId] = wanted;
   else delete activeFilters.custom[fieldId];
+  saveBoardFilters();
   window.applyFilters();
 }
 
@@ -1155,6 +1202,7 @@ function onFilterCheckbox(type, checkbox) {
   } else {
     activeFilters[key] = activeFilters[key].filter(v => v !== checkbox.value);
   }
+  saveBoardFilters();
   // Filtering on epics alone shows the epic cards themselves: the board is drawn again
   if (onlyEpic !== _onlyEpicTypeFilter()) window.render();
   else window.applyFilters();
@@ -1304,6 +1352,7 @@ function clearAllFilters() {
   const onlyEpic = _onlyEpicTypeFilter();
   // Cleared in place: other modules hold window.activeFilters
   Object.assign(activeFilters, { assignees: [], priorities: [], tags: [], search: '', custom: {} });
+  saveBoardFilters();
   const filterSearchEl = document.getElementById('filter-search');
   if (filterSearchEl) filterSearchEl.value = '';
   // The card filters only; the status and epic menus are view choices
@@ -2018,6 +2067,8 @@ window.closeNewBoardModal = closeNewBoardModal;
 window.submitNewBoard = submitNewBoard;
 window.activeFilters = activeFilters;
 window.activeFilterCount = activeFilterCount;
+window.saveBoardFilters = saveBoardFilters;
+window.restoreBoardFilters = restoreBoardFilters;
 window.syncCustomFieldFilters = syncCustomFieldFilters;
 window.onCustomFieldFilter = onCustomFieldFilter;
 window.initFilterBar = initFilterBar;

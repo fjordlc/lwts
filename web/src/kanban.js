@@ -300,6 +300,7 @@ async function loadBoardCards(boardId) {
   const grouped = await window.API.listCards(boardId);
   if (gen !== _loadGeneration) return; // stale load, discard
   if (typeof window.restoreBoardView === 'function') window.restoreBoardView(boardId);
+  if (typeof window.restoreBoardFilters === 'function') window.restoreBoardFilters(boardId);
   cardIndex = {};
   const prevCleared = state.cleared || [];
   state = { cleared: prevCleared };
