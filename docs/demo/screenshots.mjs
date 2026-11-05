@@ -1,4 +1,4 @@
-// Take the README screenshots from a running demo (see start.sh).
+// Take the README screenshots (desktop and phone) from a running demo (see start.sh).
 // Usage: node docs/demo/screenshots.mjs [base url] [output dir]
 // Needs Playwright: npm install --no-save playwright && npx playwright install chromium
 const base = process.argv[2] || 'http://localhost:8090';
@@ -43,5 +43,30 @@ await page.locator('#detail-epic .fn-dropdown-option', { hasText: 'Animal contai
 await page.evaluate(() => { const body = document.querySelector('#detail-modal .detail-body'); if (body) body.scrollTop = 0; });
 await page.mouse.move(5, 5);
 await shot('sc-3.png');
+
+// Phone screenshots: the board with the bottom bar, the Filter sheet, and settings in the sheet
+const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, isMobile: true, hasTouch: true, colorScheme: 'dark' });
+const mobile = await phone.newPage();
+const phoneShot = async (name) => { await mobile.waitForTimeout(700); await mobile.screenshot({ path: out + name }); console.log('saved', out + name); };
+await mobile.goto(base + '/');
+await mobile.fill('#login-email', 'hammond@isla-nublar.test');
+await mobile.fill('#login-password', 'spared-no-expense');
+await mobile.click('#login-form button[type=submit]');
+await mobile.waitForSelector('.card', { state: 'attached' }); // the cards of other columns are attached but hidden
+await mobile.waitForTimeout(1500);
+
+// 4. The board on a phone: column tabs and the bottom bar
+await mobile.locator('.mobile-tab', { hasText: 'In Progress' }).first().click();
+await phoneShot('sc-phone-1.png');
+
+// 5. The Filter sheet
+await mobile.click('#mobile-nav-filter');
+await phoneShot('sc-phone-2.png');
+await mobile.click('#mobile-nav-filter');
+
+// 6. Account > Settings in the sheet, with the board behind it
+await mobile.click('.mobile-nav-btn[data-sheet="account"]');
+await mobile.locator('#mobile-sheet .header-user-item', { hasText: 'Settings' }).click();
+await phoneShot('sc-phone-3.png');
 
 await browser.close();
